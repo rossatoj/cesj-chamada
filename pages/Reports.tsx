@@ -8,7 +8,8 @@ import autoTable from 'jspdf-autotable';
 const Reports: React.FC = () => {
   const { state } = useApp();
   const [filterType, setFilterType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Ajuste para o fuso de Brasília (America/Sao_Paulo)
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }));
 
   const reportData = useMemo(() => {
     return state.classes.map(turma => {

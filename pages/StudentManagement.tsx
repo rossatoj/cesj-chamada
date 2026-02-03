@@ -2,11 +2,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../App';
 import { Student, StudentStatus } from '../types';
-import { Plus, Trash2, Edit2, Upload, Users, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, Users, AlertTriangle, Loader2 } from 'lucide-react';
 
-// This component handles the management of students, including importing via text files.
 const StudentManagement: React.FC = () => {
-  const { state, setState } = useApp();
+  const { state, persistStudent, removeStudent } = useApp();
   const [formData, setFormData] = useState<Partial<Student>>({
     fullName: '',
     cgm: '',
@@ -16,51 +15,62 @@ const StudentManagement: React.FC = () => {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '--/--/----';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.classId || !formData.fullName) {
       alert('Preencha os campos obrigatórios.');
       return;
     }
 
-    if (editingId) {
-      setState(prev => ({
-        ...prev,
-        students: prev.students.map(s => s.id === editingId ? { ...s, ...formData } as Student : s)
-      }));
-      setEditingId(null);
-    } else {
-      const newStudent: Student = {
+    setIsBusy(true);
+    try {
+      const studentData: Student = {
         ...formData,
-        id: Date.now().toString(),
+        id: editingId || Date.now().toString(),
       } as Student;
-      setState(prev => ({ ...prev, students: [...prev.students, newStudent] }));
+
+      await persistStudent(studentData);
+      
+      setFormData({ fullName: '', cgm: '', birthDate: '', status: StudentStatus.MATRICULADO, classId: '' });
+      setShowForm(false);
+      setEditingId(null);
+      alert(editingId ? 'Aluno atualizado com sucesso!' : 'Aluno cadastrado com sucesso!');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao salvar no Firestore.');
+    } finally {
+      setIsBusy(false);
     }
-    
-    setFormData({ fullName: '', cgm: '', birthDate: '', status: StudentStatus.MATRICULADO, classId: '' });
-    setShowForm(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
-      const newStudents: Student[] = [];
+      let count = 0;
 
-      lines.forEach(line => {
-        if (!line.trim()) return;
+      setIsBusy(true);
+      for (const line of lines) {
+        if (!line.trim()) continue;
         const parts = line.split(',').map(s => s.trim());
-        if (parts.length < 5) return;
+        if (parts.length < 5) continue;
         
         const [className, nome, cgm, dataNasc, situacao] = parts;
-        
         const turma = state.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
-        if (!turma) return;
+        
+        if (!turma) continue;
 
         let statusValue = StudentStatus.MATRICULADO;
         const normalizedStatus = situacao.toUpperCase();
@@ -68,32 +78,39 @@ const StudentManagement: React.FC = () => {
         else if (normalizedStatus.includes('REMANEJADO')) statusValue = StudentStatus.REMANEJADO;
         else if (normalizedStatus.includes('SEM FREQU')) statusValue = StudentStatus.SEM_FREQUENCIA;
 
-        newStudents.push({
+        const newStudent: Student = {
           id: Math.random().toString(36).substr(2, 9) + Date.now(),
           fullName: nome,
           cgm: cgm,
           birthDate: dataNasc,
           status: statusValue,
           classId: turma.id
-        });
-      });
+        };
 
-      if (newStudents.length > 0) {
-        setState(prev => ({ ...prev, students: [...prev.students, ...newStudents] }));
-        alert(`${newStudents.length} alunos importados com sucesso!`);
+        try {
+          await persistStudent(newStudent);
+          count++;
+        } catch (err) {
+          console.error("Erro ao importar linha:", line);
+        }
       }
+      setIsBusy(false);
+      alert(`${count} alunos importados e salvos no banco de dados!`);
     };
     reader.readAsText(file);
     e.target.value = ''; 
   };
 
-  const deleteStudent = (id: string) => {
-    if (window.confirm('Deseja realmente excluir este aluno?')) {
-      setState(prev => ({
-        ...prev,
-        students: prev.students.filter(s => s.id !== id),
-        attendance: prev.attendance.filter(a => a.studentId !== id)
-      }));
+  const deleteStudent = async (id: string) => {
+    if (window.confirm('Deseja realmente excluir este aluno do banco de dados?')) {
+      setIsBusy(true);
+      try {
+        await removeStudent(id);
+      } catch (err) {
+        alert('Erro ao excluir aluno.');
+      } finally {
+        setIsBusy(false);
+      }
     }
   };
 
@@ -104,15 +121,16 @@ const StudentManagement: React.FC = () => {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">Gestão de Alunos</h2>
-          <p className="text-gray-500">Alunos agrupados por suas respectivas turmas</p>
+          <p className="text-gray-500">Sincronizado com Google Firestore</p>
         </div>
         <div className="flex space-x-3 w-full sm:w-auto">
           <label className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors cursor-pointer shadow-sm">
             <Upload size={18} />
-            <span>Importar .txt</span>
-            <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" />
+            <span>{isBusy ? 'Processando...' : 'Importar .txt'}</span>
+            <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" disabled={isBusy} />
           </label>
           <button
+            disabled={isBusy}
             onClick={() => { setShowForm(!showForm); setEditingId(null); if (!showForm) setFormData({ fullName: '', cgm: '', birthDate: '', status: StudentStatus.MATRICULADO, classId: '' }); }}
             className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
           >
@@ -178,7 +196,8 @@ const StudentManagement: React.FC = () => {
             </select>
           </div>
           <div className="flex items-end space-x-2">
-            <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+            <button type="submit" disabled={isBusy} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors flex justify-center items-center">
+              {isBusy && <Loader2 className="animate-spin mr-2" size={16} />}
               {editingId ? 'Atualizar' : 'Salvar'}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
@@ -210,6 +229,7 @@ const StudentManagement: React.FC = () => {
                     <tr>
                       <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">CGM</th>
                       <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Nome</th>
+                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Nascimento</th>
                       <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
                       <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-right">Ações</th>
                     </tr>
@@ -219,6 +239,7 @@ const StudentManagement: React.FC = () => {
                       <tr key={student.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 text-sm font-mono text-gray-600">{student.cgm}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
                         <td className="px-6 py-4">
                           <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${
                             student.status === StudentStatus.MATRICULADO ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
@@ -228,12 +249,14 @@ const StudentManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button 
+                            disabled={isBusy}
                             onClick={() => { setEditingId(student.id); setFormData(student); setShowForm(true); }}
                             className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button 
+                            disabled={isBusy}
                             onClick={() => deleteStudent(student.id)}
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                           >
@@ -244,7 +267,7 @@ const StudentManagement: React.FC = () => {
                     ))}
                     {studentsInClass.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-gray-400 italic">
+                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400 italic">
                           Nenhum aluno cadastrado nesta turma.
                         </td>
                       </tr>
@@ -269,14 +292,17 @@ const StudentManagement: React.FC = () => {
                     <tr key={student.id} className="hover:bg-red-50/30 transition-colors">
                       <td className="px-6 py-4 text-sm font-mono text-gray-600">{student.cgm}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
                       <td className="px-6 py-4 text-right">
                          <button 
+                            disabled={isBusy}
                             onClick={() => { setEditingId(student.id); setFormData(student); setShowForm(true); }}
                             className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
                             <Edit2 size={16} />
                           </button>
                         <button 
+                          disabled={isBusy}
                           onClick={() => deleteStudent(student.id)}
                           className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
