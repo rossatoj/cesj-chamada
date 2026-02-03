@@ -25,6 +25,9 @@ import {
   deleteDoc, 
   writeBatch,
   getDoc,
+  getDocs,
+  query,
+  where,
   Firestore
 } from 'firebase/firestore';
 import { 
@@ -55,13 +58,11 @@ const firebaseConfig = {
 // Singleton para serviços
 let firebaseApp: FirebaseApp | null = null;
 let db: Firestore | null = null;
-let auth: Auth | null = null;
+let authInstance: Auth | null = null;
 
 const initializeFirebase = () => {
   try {
-    // Validação rigorosa da chave
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'undefined' || firebaseConfig.apiKey === '[API_KEY]') {
-      console.warn("Firebase: API Key não configurada ou inválida.");
       return false;
     }
     
@@ -71,7 +72,7 @@ const initializeFirebase = () => {
       firebaseApp = getApp();
     }
     db = getFirestore(firebaseApp);
-    auth = getAuth(firebaseApp);
+    authInstance = getAuth(firebaseApp);
     return true;
   } catch (error) {
     console.error("Erro ao inicializar Firebase:", error);
@@ -100,6 +101,7 @@ interface AppContextType {
   dbStatus: DBStatus;
   lastError: string | null;
   testConnectivity: () => void;
+  auth: Auth | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -123,12 +125,12 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    if (!auth || !db) {
+    if (!authInstance || !db) {
       setLoading(false);
       return;
     }
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(authInstance, async (firebaseUser) => {
       if (firebaseUser) {
         try {
           if (db) {
@@ -136,13 +138,21 @@ const App: React.FC = () => {
             if (userDoc.exists()) {
               setCurrentUser({ id: firebaseUser.uid, ...userDoc.data() } as User);
             } else {
-              setCurrentUser({ 
-                id: firebaseUser.uid, 
-                username: firebaseUser.email?.split('@')[0] || 'user', 
-                fullName: firebaseUser.displayName || 'Usuário',
-                email: firebaseUser.email || '',
-                role: UserRole.PEDAGOGO 
-              });
+              const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+              const querySnapshot = await getDocs(q);
+              
+              if (!querySnapshot.empty) {
+                const docFound = querySnapshot.docs[0];
+                setCurrentUser({ id: docFound.id, ...docFound.data() } as User);
+              } else {
+                setCurrentUser({ 
+                  id: firebaseUser.uid, 
+                  username: firebaseUser.email?.split('@')[0] || 'user', 
+                  fullName: firebaseUser.displayName || 'Usuário Autenticado',
+                  email: firebaseUser.email || '',
+                  role: UserRole.PEDAGOGO 
+                });
+              }
             }
           }
         } catch (error) {
@@ -198,7 +208,7 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   const logout = async () => {
-    if (auth) await signOut(auth);
+    if (authInstance) await signOut(authInstance);
     setCurrentUser(null);
   };
 
@@ -231,10 +241,10 @@ const App: React.FC = () => {
           <ShieldAlert size={40} className="text-red-500" />
         </div>
         <h2 className="text-2xl font-black tracking-tight uppercase mb-2">Chave de API Inválida</h2>
-        <p className="text-blue-200 text-sm max-w-sm mb-8 leading-relaxed opacity-80">
-          O Firebase não pôde ser inicializado. Certifique-se de que a variável de ambiente <b>API_KEY</b> está configurada corretamente no seu ambiente de desenvolvimento.
+        <p className="text-blue-200 text-base max-w-sm mb-8 leading-relaxed opacity-80">
+          O Firebase não pôde ser inicializado. Verifique as configurações de ambiente.
         </p>
-        <button onClick={testConnectivity} className="px-10 py-4 bg-blue-600 hover:bg-blue-50 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-blue-500/20 active:scale-95">
+        <button onClick={testConnectivity} className="px-10 py-4 bg-blue-600 hover:bg-blue-50 rounded-xl font-bold uppercase tracking-widest text-[14px] transition-all shadow-xl shadow-blue-500/20 active:scale-95">
           Reiniciar Aplicação
         </button>
       </div>
@@ -245,8 +255,8 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0a192f] text-white p-4 text-center">
         <Loader2 className="animate-spin mb-4 text-blue-500" size={48} />
-        <h2 className="text-xl font-black tracking-widest uppercase">Segurança Cloud</h2>
-        <p className="text-blue-300 text-[10px] mt-2 max-w-xs italic uppercase tracking-[0.2em] opacity-50">C.E. São José • Estabelecendo Conexão</p>
+        <h2 className="text-xl font-black tracking-widest uppercase">C.E. São José</h2>
+        <p className="text-blue-300 text-[14px] mt-2 max-w-xs italic uppercase tracking-[0.2em] opacity-50">Sincronizando Dados...</p>
       </div>
     );
   }
@@ -257,7 +267,8 @@ const App: React.FC = () => {
       persistUser, removeUser, persistClass, removeClass, 
       persistStudent, removeStudent, persistAttendance,
       loading, dbStatus, lastError,
-      testConnectivity
+      testConnectivity,
+      auth: authInstance
     }}>
       <MemoryRouter>
         <Routes>
@@ -295,7 +306,7 @@ const MainLayout: React.FC = () => {
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-blue-800/30 text-center">
             <h1 className="text-xl font-black tracking-tighter uppercase leading-tight">C.E. São José</h1>
-            <p className="text-[10px] text-blue-400 mt-1 uppercase tracking-[0.3em] font-bold">Cloud Presence</p>
+            <p className="text-[14px] text-blue-400 mt-1 uppercase tracking-[0.3em] font-bold">Registro de Frequência</p>
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -305,32 +316,32 @@ const MainLayout: React.FC = () => {
               return (
                 <Link key={item.path} to={item.path} className={`flex items-center space-x-3 p-3 rounded-xl transition-all ${isActive ? 'bg-blue-600 shadow-lg shadow-blue-500/20 text-white' : 'hover:bg-blue-800/40 text-blue-100/60 hover:text-white'}`}>
                   <Icon size={18} />
-                  <span className="font-bold text-[10px] uppercase tracking-widest">{item.label}</span>
+                  <span className="font-bold text-[14px] uppercase tracking-widest">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
           <div className="p-4 border-t border-blue-800/30 bg-black/20">
-            <div className="flex items-center space-x-3 px-3 py-2 text-sm text-blue-200 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-[10px]">
+            <div className="flex items-center space-x-3 px-3 py-2 text-base text-blue-200 mb-4">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-[14px]">
                 {currentUser?.fullName[0]}
               </div>
               <div className="truncate">
-                <p className="font-bold text-white text-[10px] uppercase">{currentUser?.fullName}</p>
-                <div className="flex items-center text-[8px] uppercase tracking-widest opacity-60">
-                  <ShieldCheck size={8} className="mr-1 text-green-400" />
+                <p className="font-bold text-white text-[14px] uppercase">{currentUser?.fullName}</p>
+                <div className="flex items-center text-[14px] uppercase tracking-widest opacity-60">
+                  <ShieldCheck size={14} className="mr-1 text-green-400" />
                   {currentUser?.role}
                 </div>
               </div>
             </div>
             
-            <div className={`mb-4 px-3 py-1.5 rounded-lg flex items-center space-x-2 text-[8px] font-black uppercase tracking-widest ${dbStatus === 'online' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+            <div className={`mb-4 px-3 py-1.5 rounded-lg flex items-center space-x-2 text-[14px] font-black uppercase tracking-widest ${dbStatus === 'online' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
               <div className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'online' ? 'bg-green-400' : 'bg-red-400'}`} />
               <span>{dbStatus === 'online' ? 'Online' : 'Offline'}</span>
             </div>
 
-            <button onClick={logout} className="w-full flex items-center space-x-3 p-3 text-red-400 hover:bg-red-900/40 rounded-xl transition-all font-black uppercase text-[10px] tracking-widest">
+            <button onClick={logout} className="w-full flex items-center space-x-3 p-3 text-red-400 hover:bg-red-900/40 rounded-xl transition-all font-black uppercase text-[14px] tracking-widest">
               <LogOut size={16} />
               <span>Sair</span>
             </button>
@@ -344,8 +355,8 @@ const MainLayout: React.FC = () => {
             <div className="mb-6 bg-red-50 border-2 border-red-200 p-4 rounded-2xl text-red-700 flex items-start shadow-lg">
               <CloudOff className="mr-3 shrink-0 mt-0.5 text-red-600" />
               <div>
-                <p className="font-black uppercase text-xs tracking-tighter mb-1">Acesso ao Banco Negado</p>
-                <p className="text-[10px] font-bold opacity-80 uppercase">Verifique as regras de segurança do seu Firestore Console.</p>
+                <p className="font-black uppercase text-base tracking-tighter mb-1">Acesso ao Banco Negado</p>
+                <p className="text-[14px] font-bold opacity-80 uppercase">Verifique as regras de segurança do seu Firestore Console.</p>
               </div>
             </div>
           )}

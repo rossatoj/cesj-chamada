@@ -177,7 +177,7 @@ const StudentManagement: React.FC = () => {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md border border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-300 mb-8">
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Nome Completo</label>
+            <label className="text-base font-semibold text-gray-700">Nome Completo</label>
             <input
               type="text"
               required
@@ -187,7 +187,7 @@ const StudentManagement: React.FC = () => {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">CGM</label>
+            <label className="text-base font-semibold text-gray-700">CGM</label>
             <input
               type="text"
               required
@@ -197,7 +197,7 @@ const StudentManagement: React.FC = () => {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Data de Nascimento</label>
+            <label className="text-base font-semibold text-gray-700">Data de Nascimento</label>
             <input
               type="date"
               required
@@ -207,7 +207,7 @@ const StudentManagement: React.FC = () => {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Turma</label>
+            <label className="text-base font-semibold text-gray-700">Turma</label>
             <select
               required
               value={formData.classId}
@@ -219,7 +219,7 @@ const StudentManagement: React.FC = () => {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">Situação</label>
+            <label className="text-base font-semibold text-gray-700">Situação</label>
             <select
               required
               value={formData.status}
@@ -257,7 +257,7 @@ const StudentManagement: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">{turma.name}</h3>
-                    <p className="text-sm text-blue-600">{studentsInClass.length} alunos</p>
+                    <p className="text-base text-blue-600">{studentsInClass.length} alunos</p>
                   </div>
                 </div>
               </div>
@@ -265,21 +265,21 @@ const StudentManagement: React.FC = () => {
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">CGM</th>
-                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Nome</th>
-                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Nascimento</th>
-                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-right">Ações</th>
+                      <th className="px-6 py-3 text-sm font-bold text-gray-500 uppercase">CGM</th>
+                      <th className="px-6 py-3 text-sm font-bold text-gray-500 uppercase">Nome</th>
+                      <th className="px-6 py-3 text-sm font-bold text-gray-500 uppercase">Nascimento</th>
+                      <th className="px-6 py-3 text-sm font-bold text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-sm font-bold text-gray-500 uppercase text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {studentsInClass.map(student => (
                       <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-mono text-gray-600">{student.cgm}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
+                        <td className="px-6 py-4 text-base font-mono text-gray-600">{student.cgm}</td>
+                        <td className="px-6 py-4 text-base font-medium text-gray-900">{student.fullName}</td>
+                        <td className="px-6 py-4 text-base text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
                         <td className="px-6 py-4">
-                          <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${
+                          <span className={`text-[12px] px-2 py-1 rounded-full font-bold uppercase ${
                             student.status === StudentStatus.MATRICULADO ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                           }`}>
                             {student.status}
@@ -328,9 +328,9 @@ const StudentManagement: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {unassignedStudents.map(student => (
                     <tr key={student.id} className="hover:bg-red-50/30 transition-colors">
-                      <td className="px-6 py-4 text-sm font-mono text-gray-600">{student.cgm}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.fullName}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
+                      <td className="px-6 py-4 text-base font-mono text-gray-600">{student.cgm}</td>
+                      <td className="px-6 py-4 text-base font-medium text-gray-900">{student.fullName}</td>
+                      <td className="px-6 py-4 text-base text-gray-600 font-medium">{formatDate(student.birthDate)}</td>
                       <td className="px-6 py-4 text-right">
                          <button 
                             disabled={isBusy}

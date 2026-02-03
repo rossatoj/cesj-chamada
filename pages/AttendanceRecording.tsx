@@ -7,7 +7,6 @@ import { ArrowLeft, Save, ClipboardCheck, Loader2, Calendar, UserCheck } from 'l
 const AttendanceRecording: React.FC = () => {
   const { state, persistAttendance } = useApp();
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
-  // Ajuste para o fuso de Brasília (America/Sao_Paulo)
   const [date, setDate] = useState(new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }));
   const [currentAttendance, setCurrentAttendance] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -91,7 +90,7 @@ const AttendanceRecording: React.FC = () => {
             </button>
             <div>
               <h2 className="text-3xl font-black text-gray-900 leading-none tracking-tight">{selectedClass.name}</h2>
-              <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center mt-2 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-100">
+              <p className="text-[14px] font-bold text-blue-600 uppercase tracking-widest flex items-center mt-2 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-100">
                 <Calendar size={12} className="mr-2" />
                 <span className="opacity-80">{displayDate}</span>
               </p>
@@ -102,9 +101,8 @@ const AttendanceRecording: React.FC = () => {
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <th className="px-6 py-4 text-left">Aluno / CGM</th>
-                <th className="px-6 py-4 text-center">Nascimento</th>
+              <tr className="text-[14px] font-black text-gray-400 uppercase tracking-widest">
+                <th className="px-6 py-4 text-left">Aluno / Dados</th>
                 <th className="px-6 py-4 text-center">Situação</th>
                 <th className="px-6 py-4 text-center">Frequência</th>
               </tr>
@@ -116,14 +114,11 @@ const AttendanceRecording: React.FC = () => {
                 .map(student => (
                 <tr key={student.id} className="hover:bg-blue-50/30 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="font-bold text-gray-900 text-sm leading-tight">{student.fullName}</p>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mt-0.5">CGM: {student.cgm}</p>
-                  </td>
-                  <td className="px-6 py-4 text-center text-xs font-bold text-gray-600">
-                    {formatDate(student.birthDate)}
+                    <p className="font-bold text-gray-900 text-base leading-tight">{student.fullName}</p>
+                    <p className="text-[14px] font-black text-gray-400 uppercase tracking-tighter mt-0.5">Nasc: {formatDate(student.birthDate)}</p>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`text-[8px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
+                    <span className={`text-[14px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
                       student.status === StudentStatus.MATRICULADO 
                       ? 'bg-green-50 text-green-600 border-green-100' 
                       : 'bg-yellow-50 text-yellow-600 border-yellow-100'
@@ -144,7 +139,7 @@ const AttendanceRecording: React.FC = () => {
           <button 
             onClick={saveAttendance} 
             disabled={busy} 
-            className="flex items-center space-x-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center space-x-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[14px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
           >
             {busy ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
             <span>Finalizar Registro de Frequência</span>
@@ -163,7 +158,7 @@ const AttendanceRecording: React.FC = () => {
       
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-6">
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+          <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
             <Calendar size={12} className="mr-1" /> Data do Registro
           </label>
           <input 
@@ -174,8 +169,8 @@ const AttendanceRecording: React.FC = () => {
           />
         </div>
         <div className="flex-1 border-l border-gray-100 pl-6 hidden md:block">
-          <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Dica de Uso</p>
-          <p className="text-xs text-gray-500 mt-1">Clique em <span className="font-bold text-green-600">C</span> para Comparecimento ou <span className="font-bold text-red-600">F</span> para Falta.</p>
+          <p className="text-[14px] font-black text-blue-600 uppercase tracking-[0.2em]">Dica de Uso</p>
+          <p className="text-base text-gray-500 mt-1">Clique em <span className="font-bold text-green-600">C</span> para Comparecimento ou <span className="font-bold text-red-600">F</span> para Falta.</p>
         </div>
       </div>
 
@@ -198,8 +193,8 @@ const AttendanceRecording: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{cls.name}</h3>
               <div className="mt-2 flex flex-col space-y-1">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{classStudents.length} Alunos Totais</p>
-                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{matriculadosCount} Ativos para Chamada</p>
+                <p className="text-[14px] font-black text-gray-400 uppercase tracking-widest">{classStudents.length} Alunos Totais</p>
+                <p className="text-[14px] font-black text-blue-500 uppercase tracking-widest">{matriculadosCount} Ativos para Chamada</p>
               </div>
             </button>
           );

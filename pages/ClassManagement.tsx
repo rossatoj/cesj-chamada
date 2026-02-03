@@ -57,7 +57,7 @@ const ClassManagement: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1 space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">Nome da Turma</label>
+          <label className="block text-base font-semibold text-gray-700">Nome da Turma</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: 6º ANO A" className="w-full border rounded-lg px-4 py-2 outline-none bg-white text-black" required />
         </div>
         <button disabled={busy} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold flex items-center">
@@ -71,7 +71,7 @@ const ClassManagement: React.FC = () => {
           <div key={cls.id} className="bg-white p-6 rounded-xl border border-gray-100 flex justify-between items-center group shadow-sm hover:shadow-md transition-all">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold text-gray-800 truncate">{cls.name}</h3>
-              <span className="text-sm text-gray-500 flex items-center mt-1">
+              <span className="text-base text-gray-500 flex items-center mt-1">
                 <UsersIcon size={14} className="mr-1" /> {state.students.filter(s => s.classId === cls.id).length} Alunos
               </span>
             </div>

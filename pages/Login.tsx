@@ -8,37 +8,48 @@ import {
   RefreshCw,
   Search,
   Key,
-  Mail
+  Mail,
+  ExternalLink,
+  Info,
+  CheckCircle2
 } from 'lucide-react';
 import { 
-  getAuth, 
   signInWithEmailAndPassword
 } from 'firebase/auth';
 
 const Login: React.FC = () => {
+  const { auth } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isBusy, setIsBusy] = useState(false);
-
-  const auth = getAuth();
+  const [showHelp, setShowHelp] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth) {
+      setError('O sistema de autenticação não foi inicializado. Verifique a conexão.');
+      return;
+    }
+
     setIsBusy(true);
     setError('');
+    setShowHelp(false);
 
     try {
-      // Apenas login é permitido agora. Registros são feitos pelo Admin.
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      console.error("Login Error Code:", err.code);
+      
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {
         setError('E-mail ou senha incorretos.');
+        setShowHelp(true);
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Senha incorreta.');
       } else if (err.code === 'auth/too-many-requests') {
-        setError('Muitas tentativas sem sucesso. Tente novamente mais tarde.');
+        setError('Acesso bloqueado temporariamente por muitas tentativas falhas.');
       } else {
-        setError('Ocorreu um erro na autenticação. Verifique sua conexão.');
+        setError('Falha no acesso: ' + (err.code || 'Verifique sua conexão'));
       }
     } finally {
       setIsBusy(false);
@@ -56,12 +67,12 @@ const Login: React.FC = () => {
             <GraduationCap size={48} />
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tighter leading-none">C.E. São José</h1>
-          <p className="text-blue-200 mt-2 text-[10px] font-black uppercase tracking-[0.4em] opacity-80">Gestão de Frequência Cloud</p>
+          <p className="text-blue-200 mt-2 text-[14px] font-black uppercase tracking-[0.4em] opacity-80">Gestão de Frequência</p>
         </div>
         
         <form onSubmit={handleAuth} className="p-8 space-y-6">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+            <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
               <Mail size={12} className="mr-1" /> E-mail Institucional
             </label>
             <input
@@ -75,7 +86,7 @@ const Login: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+            <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
               <Key size={12} className="mr-1" /> Senha de Acesso
             </label>
             <input
@@ -89,9 +100,46 @@ const Login: React.FC = () => {
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-[10px] font-black uppercase border border-red-100 flex items-start space-x-3 animate-in shake">
-              <AlertTriangle size={18} className="shrink-0" />
-              <span>{error}</span>
+            <div className="space-y-4">
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl text-[14px] font-black uppercase border border-red-100 flex items-start space-x-3 animate-in shake">
+                <AlertTriangle size={18} className="shrink-0" />
+                <span className="flex-1">{error}</span>
+              </div>
+              
+              {showHelp && (
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="flex items-center space-x-2 text-blue-700 mb-2">
+                    <Info size={16} />
+                    <span className="text-[14px] font-black uppercase tracking-tighter">Ação Necessária do Administrador:</span>
+                  </div>
+                  <div className="text-[14px] text-blue-800 font-bold space-y-3 uppercase leading-relaxed">
+                    <p className="opacity-80">Você existe no banco de dados (Firestore), mas ainda não possui uma credencial de acesso.</p>
+                    <ul className="space-y-2">
+                      <li className="flex items-start space-x-2">
+                        <CheckCircle2 size={10} className="text-blue-600 mt-0.5" />
+                        <span>Acesse o <b>Firebase Console</b></span>
+                      </li>
+                      <li className="flex items-start space-x-2">
+                        <CheckCircle2 size={10} className="text-blue-600 mt-0.5" />
+                        <span>Vá em <b>Authentication > Users</b></span>
+                      </li>
+                      <li className="flex items-start space-x-2">
+                        <CheckCircle2 size={10} className="text-blue-600 mt-0.5" />
+                        <span>Adicione o e-mail <b>{email || '...'}</b> e uma senha.</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <a 
+                    href="https://console.firebase.google.com/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="mt-4 flex items-center justify-center space-x-2 py-2 bg-blue-600 text-white rounded-lg text-[14px] font-black uppercase hover:bg-blue-700 transition-colors shadow-md shadow-blue-500/20"
+                  >
+                    <span>Abrir Aba Authentication</span>
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -105,9 +153,9 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        <div className="p-4 bg-gray-50 text-center text-[9px] text-gray-400 border-t flex flex-col space-y-1 uppercase font-black tracking-tighter">
+        <div className="p-4 bg-gray-50 text-center text-[14px] text-gray-400 border-t flex flex-col space-y-1 uppercase font-black tracking-tighter">
           <p>© {new Date().getFullYear()} Colégio Estadual São José</p>
-          <p className="opacity-50">Acesso Restrito a Colaboradores</p>
+          <p className="opacity-50 italic">Ambiente seguro • Dados criptografados</p>
         </div>
       </div>
     </div>

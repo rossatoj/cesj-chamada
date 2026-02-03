@@ -100,7 +100,7 @@ const Reports: React.FC = () => {
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-6">
         <div className="flex-1 space-y-2">
-          <label className="text-sm font-semibold flex items-center"><Table size={16} className="mr-1"/> Tipo de Relatório</label>
+          <label className="text-base font-semibold flex items-center"><Table size={16} className="mr-1"/> Tipo de Relatório</label>
           <div className="flex border rounded-lg overflow-hidden">
             {(['daily', 'weekly', 'monthly'] as const).map(type => (
               <button
@@ -114,7 +114,7 @@ const Reports: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 space-y-2">
-          <label className="text-sm font-semibold flex items-center"><Calendar size={16} className="mr-1"/> Data de Referência</label>
+          <label className="text-base font-semibold flex items-center"><Calendar size={16} className="mr-1"/> Data de Referência</label>
           <input
             type="date"
             className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"

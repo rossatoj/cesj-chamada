@@ -3,13 +3,11 @@ import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useApp } from '../App';
 import { StudentStatus } from '../types';
-// Added X to the imports
 import { ShieldAlert, ExternalLink, Copy, Check, Info, X } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { state, dbStatus, lastError } = useApp();
+  const { state, dbStatus } = useApp();
   const [period, setPeriod] = useState<'diario' | 'semanal' | 'mensal'>('diario');
-  // Ajuste para o fuso de Brasília (America/Sao_Paulo)
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }));
   const [copied, setCopied] = useState(false);
   const [showFixGuide, setShowFixGuide] = useState(dbStatus === 'permission-denied');
@@ -27,14 +25,7 @@ const Dashboard: React.FC = () => {
   }, [state, selectedDate]);
 
   const copyRules = () => {
-    const rules = `rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}`;
+    const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
     navigator.clipboard.writeText(rules);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -71,7 +62,7 @@ service cloud.firestore {
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
             Painel de Controle 
-            {dbStatus === 'online' && <span className="ml-3 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full uppercase tracking-widest font-bold border border-green-200">Sincronizado</span>}
+            {dbStatus === 'online' && <span className="ml-3 px-2 py-0.5 bg-green-100 text-green-700 text-[14px] rounded-full uppercase tracking-widest font-bold border border-green-200">Sincronizado</span>}
           </h2>
           <p className="text-gray-500 font-medium">Monitoramento de frequência e gestão escolar</p>
         </div>
@@ -80,12 +71,11 @@ service cloud.firestore {
             type="date" 
             value={selectedDate} 
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 text-sm border-none outline-none bg-white text-gray-800 font-bold focus:ring-0"
+            className="px-4 py-2 text-base border-none outline-none bg-white text-gray-800 font-bold focus:ring-0"
           />
         </div>
       </header>
 
-      {/* Alerta Discreto de Erro no Banco */}
       {dbStatus === 'permission-denied' && !showFixGuide && (
         <button 
           onClick={() => setShowFixGuide(true)}
@@ -93,19 +83,18 @@ service cloud.firestore {
         >
           <div className="flex items-center space-x-3 text-red-700">
             <ShieldAlert size={20} className="animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-tight">O Banco de Dados está bloqueado! Clique para ver como resolver.</span>
+            <span className="text-[14px] font-black uppercase tracking-tight">O Banco de Dados está bloqueado! Clique para ver como resolver.</span>
           </div>
           <Info size={16} className="text-red-400 group-hover:text-red-600" />
         </button>
       )}
 
-      {/* Guia de Resolução Expansível */}
       {showFixGuide && (
         <div className="bg-white border-2 border-red-200 rounded-3xl shadow-xl overflow-hidden animate-in zoom-in duration-500">
           <div className="bg-red-600 p-5 text-white flex items-center justify-between">
             <div className="flex items-center">
               <ShieldAlert size={24} className="mr-3 shrink-0" />
-              <h3 className="font-black uppercase tracking-widest text-sm">Resolução de Erro de Permissão</h3>
+              <h3 className="font-black uppercase tracking-widest text-[14px]">Resolução de Erro de Permissão</h3>
             </div>
             <button onClick={() => setShowFixGuide(false)} className="text-white/60 hover:text-white transition-colors">
               <X size={24} />
@@ -113,12 +102,12 @@ service cloud.firestore {
           </div>
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-5">
-              <p className="text-sm text-gray-600 leading-relaxed font-medium">
+              <p className="text-base text-gray-600 leading-relaxed font-medium">
                 O Google Firestore exige que as regras de segurança sejam configuradas. Atualmente, o servidor está negando suas solicitações.
               </p>
               <div className="space-y-3">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Guia Rápido:</p>
-                <ol className="text-xs text-gray-700 space-y-3 font-semibold">
+                <p className="text-[14px] font-black text-gray-400 uppercase tracking-widest">Guia Rápido:</p>
+                <ol className="text-base text-gray-700 space-y-3 font-semibold">
                   <li className="flex items-center space-x-2">
                     <span className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center shrink-0">1</span>
                     <span>Acesse o <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-blue-600 underline">Console Firebase</a></span>
@@ -135,19 +124,12 @@ service cloud.firestore {
               </div>
             </div>
             <div className="relative">
-              <pre className="bg-gray-900 text-green-400 p-5 rounded-2xl font-mono text-[10px] overflow-x-auto border border-black shadow-inner">
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}`}
+              <pre className="bg-gray-900 text-green-400 p-5 rounded-2xl font-mono text-[14px] overflow-x-auto border border-black shadow-inner">
+{`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`}
               </pre>
               <button 
                 onClick={copyRules}
-                className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors flex items-center space-x-2 text-[10px] font-bold"
+                className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors flex items-center space-x-2 text-[14px] font-bold"
               >
                 {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
                 <span>{copied ? 'Copiado!' : 'Copiar'}</span>
@@ -167,7 +149,7 @@ service cloud.firestore {
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Frequência por Turma (%)</h3>
-          <div className="flex bg-gray-50 p-1.5 rounded-xl text-[10px] font-black border border-gray-100">
+          <div className="flex bg-gray-50 p-1.5 rounded-xl text-[14px] font-black border border-gray-100">
             {(['diario', 'semanal', 'mensal'] as const).map(p => (
               <button
                 key={p}
@@ -183,11 +165,11 @@ service cloud.firestore {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} />
-              <YAxis domain={[0, 100]} unit="%" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 14, fontWeight: 700}} />
+              <YAxis domain={[0, 100]} unit="%" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 14, fontWeight: 700}} />
               <Tooltip 
                 cursor={{ fill: '#f8fafc' }} 
-                contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 800, fontSize: '12px'}} 
+                contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 800, fontSize: '14px'}} 
               />
               <Bar dataKey="porcentagem" name="Presença" fill="#1d4ed8" radius={[10, 10, 0, 0]} barSize={45} />
             </BarChart>
@@ -200,7 +182,7 @@ service cloud.firestore {
 
 const StatCard: React.FC<{ title: string; value: string | number; color: string }> = ({ title, value, color }) => (
   <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 flex flex-col items-center justify-center text-center group hover:border-blue-500/20 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300">
-    <span className="text-gray-400 text-[10px] font-black mb-1 uppercase tracking-[0.2em]">{title}</span>
+    <span className="text-gray-400 text-[14px] font-black mb-1 uppercase tracking-[0.2em]">{title}</span>
     <span className="text-4xl font-black text-gray-900 tracking-tighter">{value}</span>
     <div className={`h-1.5 w-10 mt-6 rounded-full ${color} opacity-20 group-hover:opacity-100 transition-all group-hover:w-16`}></div>
   </div>
