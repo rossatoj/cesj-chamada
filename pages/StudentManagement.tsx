@@ -19,8 +19,12 @@ const StudentManagement: React.FC = () => {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '--/--/----';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      return `${day}/${month}/${year}`;
+    }
+    return dateStr;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,29 +64,49 @@ const StudentManagement: React.FC = () => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
       let count = 0;
+      let errors = 0;
 
       setIsBusy(true);
       for (const line of lines) {
         if (!line.trim()) continue;
+        
+        // Formato esperado: ano/série,nome do aluno,CGM,data de nascimento,situação
         const parts = line.split(',').map(s => s.trim());
         if (parts.length < 5) continue;
         
-        const [className, nome, cgm, dataNasc, situacao] = parts;
-        const turma = state.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
+        const [anoSerie, nome, cgm, dataNascRaw, situacaoRaw] = parts;
         
-        if (!turma) continue;
+        // 1. Localiza a turma
+        const turma = state.classes.find(c => c.name.toLowerCase() === anoSerie.toLowerCase());
+        if (!turma) {
+          console.warn(`Turma não encontrada: ${anoSerie}`);
+          errors++;
+          continue;
+        }
 
+        // 2. Converte data de nascimento DD/MM/AAAA para YYYY-MM-DD
+        let birthDate = dataNascRaw;
+        if (dataNascRaw.includes('/')) {
+          const dParts = dataNascRaw.split('/');
+          if (dParts.length === 3) {
+            const [d, m, y] = dParts;
+            birthDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          }
+        }
+
+        // 3. Mapeia situação
         let statusValue = StudentStatus.MATRICULADO;
-        const normalizedStatus = situacao.toUpperCase();
-        if (normalizedStatus.includes('TRANSFERIDO')) statusValue = StudentStatus.TRANSFERIDO;
-        else if (normalizedStatus.includes('REMANEJADO')) statusValue = StudentStatus.REMANEJADO;
-        else if (normalizedStatus.includes('SEM FREQU')) statusValue = StudentStatus.SEM_FREQUENCIA;
+        const normStatus = situacaoRaw.toUpperCase();
+        if (normStatus.includes('TRANSF')) statusValue = StudentStatus.TRANSFERIDO;
+        else if (normStatus.includes('REMAN')) statusValue = StudentStatus.REMANEJADO;
+        else if (normStatus.includes('SEM FREQU') || normStatus === 'SF') statusValue = StudentStatus.SEM_FREQUENCIA;
+        else if (normStatus.includes('MATRIC')) statusValue = StudentStatus.MATRICULADO;
 
         const newStudent: Student = {
-          id: Math.random().toString(36).substr(2, 9) + Date.now(),
+          id: `imp-${cgm}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           fullName: nome,
           cgm: cgm,
-          birthDate: dataNasc,
+          birthDate: birthDate,
           status: statusValue,
           classId: turma.id
         };
@@ -91,11 +115,15 @@ const StudentManagement: React.FC = () => {
           await persistStudent(newStudent);
           count++;
         } catch (err) {
-          console.error("Erro ao importar linha:", line);
+          console.error("Erro ao importar linha:", line, err);
+          errors++;
         }
       }
       setIsBusy(false);
-      alert(`${count} alunos importados e salvos no banco de dados!`);
+      
+      let msg = `${count} alunos importados com sucesso.`;
+      if (errors > 0) msg += `\n${errors} registros falharam (verifique se as turmas existem no sistema).`;
+      alert(msg);
     };
     reader.readAsText(file);
     e.target.value = ''; 
@@ -114,7 +142,13 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  const unassignedStudents = state.students.filter(s => !s.classId || !state.classes.some(c => c.id === s.classId));
+  // Alunos sem turma, ordenados por nome
+  const unassignedStudents = state.students
+    .filter(s => !s.classId || !state.classes.some(c => c.id === s.classId))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  // Turmas ordenadas por nome para a listagem
+  const sortedClasses = [...state.classes].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-6 pb-20">
@@ -124,8 +158,8 @@ const StudentManagement: React.FC = () => {
           <p className="text-gray-500">Sincronizado com Google Firestore</p>
         </div>
         <div className="flex space-x-3 w-full sm:w-auto">
-          <label className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors cursor-pointer shadow-sm">
-            <Upload size={18} />
+          <label className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 px-4 py-2 rounded-lg font-semibold transition-colors cursor-pointer shadow-sm ${isBusy ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+            {isBusy ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
             <span>{isBusy ? 'Processando...' : 'Importar .txt'}</span>
             <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" disabled={isBusy} />
           </label>
@@ -181,7 +215,7 @@ const StudentManagement: React.FC = () => {
               className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
             >
               <option value="">Selecione...</option>
-              {state.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {sortedClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="space-y-1">
@@ -208,8 +242,12 @@ const StudentManagement: React.FC = () => {
       )}
 
       <div className="space-y-8">
-        {state.classes.map(turma => {
-          const studentsInClass = state.students.filter(s => s.classId === turma.id);
+        {sortedClasses.map(turma => {
+          // Alunos da turma ordenados alfabeticamente
+          const studentsInClass = state.students
+            .filter(s => s.classId === turma.id)
+            .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
           return (
             <div key={turma.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition-shadow">
               <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center">
