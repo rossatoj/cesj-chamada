@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
-import { useApp } from '../App';
-import { ClassGroup, Student, AttendanceRecord, StudentStatus } from '../types';
+import React, { useState, useMemo } from 'react';
+import { useApp } from '../AppContext';
+import { ClassGroup, Student, AttendanceRecord, StudentStatus, UserRole } from '../types';
 import { ArrowLeft, Save, ClipboardCheck, Loader2, Calendar, UserCheck } from 'lucide-react';
 
 const AttendanceRecording: React.FC = () => {
-  const { state, persistAttendance } = useApp();
+  const { state, persistAttendance, currentUser } = useApp();
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [date, setDate] = useState(new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }));
   const [currentAttendance, setCurrentAttendance] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+
+  const filteredClasses = useMemo(() => {
+    if (currentUser?.role === UserRole.AETE) {
+      // Perfil AETE vê SOMENTE a turma AETE
+      return state.classes.filter(c => c.name.toUpperCase().trim() === 'AETE');
+    }
+    // Outros perfis NÃO vêem a turma AETE para chamada institucional
+    return state.classes.filter(c => c.name.toUpperCase().trim() !== 'AETE');
+  }, [state.classes, currentUser]);
 
   const handleSelectClass = (cls: ClassGroup) => {
     setSelectedClass(cls);
@@ -38,7 +47,7 @@ const AttendanceRecording: React.FC = () => {
       await persistAttendance(newRecords);
       alert('Frequência salva no Firestore!');
       setSelectedClass(null);
-    } catch (err) {
+    } catch {
       alert('Erro ao salvar frequência.');
     } finally {
       setBusy(false);
@@ -90,7 +99,7 @@ const AttendanceRecording: React.FC = () => {
             </button>
             <div>
               <h2 className="text-3xl font-black text-gray-900 leading-none tracking-tight">{selectedClass.name}</h2>
-              <p className="text-[14px] font-bold text-blue-600 uppercase tracking-widest flex items-center mt-2 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-100">
+              <p className="text-[13px] font-bold text-blue-600 uppercase tracking-widest flex items-center mt-2 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-100">
                 <Calendar size={12} className="mr-2" />
                 <span className="opacity-80">{displayDate}</span>
               </p>
@@ -101,7 +110,8 @@ const AttendanceRecording: React.FC = () => {
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr className="text-[14px] font-black text-gray-400 uppercase tracking-widest">
+              <tr className="text-[13px] font-black text-gray-400 uppercase tracking-widest">
+                <th className="px-6 py-4 text-left w-16">Nº</th>
                 <th className="px-6 py-4 text-left">Aluno / Dados</th>
                 <th className="px-6 py-4 text-center">Situação</th>
                 <th className="px-6 py-4 text-center">Frequência</th>
@@ -110,15 +120,23 @@ const AttendanceRecording: React.FC = () => {
             <tbody className="divide-y divide-gray-50">
               {state.students
                 .filter(s => s.classId === selectedClass.id)
-                .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                .sort((a, b) => {
+                  const aNum = a.callNumber && a.callNumber.trim() !== '' ? a.callNumber : null;
+                  const bNum = b.callNumber && b.callNumber.trim() !== '' ? b.callNumber : null;
+                  if (aNum && bNum) return aNum.localeCompare(bNum);
+                  if (aNum) return -1;
+                  if (bNum) return 1;
+                  return a.fullName.localeCompare(b.fullName);
+                })
                 .map(student => (
                 <tr key={student.id} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="px-6 py-4 text-[15px] font-black text-blue-600">{student.callNumber}</td>
                   <td className="px-6 py-4">
-                    <p className="font-bold text-gray-900 text-base leading-tight">{student.fullName}</p>
-                    <p className="text-[14px] font-black text-gray-400 uppercase tracking-tighter mt-0.5">Nasc: {formatDate(student.birthDate)}</p>
+                    <p className="font-bold text-gray-900 text-[15px] leading-tight">{student.fullName}</p>
+                    <p className="text-[13px] font-black text-gray-400 uppercase tracking-tighter mt-0.5">Nasc: {formatDate(student.birthDate)}</p>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`text-[14px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
+                    <span className={`text-[13px] font-black px-2 py-1 rounded-md uppercase tracking-widest border ${
                       student.status === StudentStatus.MATRICULADO 
                       ? 'bg-green-50 text-green-600 border-green-100' 
                       : 'bg-yellow-50 text-yellow-600 border-yellow-100'
@@ -139,7 +157,7 @@ const AttendanceRecording: React.FC = () => {
           <button 
             onClick={saveAttendance} 
             disabled={busy} 
-            className="flex items-center space-x-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[14px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center space-x-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-black text-[13px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
           >
             {busy ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
             <span>Finalizar Registro de Frequência</span>
@@ -158,24 +176,24 @@ const AttendanceRecording: React.FC = () => {
       
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-6">
         <div className="space-y-1">
-          <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+          <label className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center">
             <Calendar size={12} className="mr-1" /> Data do Registro
           </label>
           <input 
             type="date" 
             value={date} 
             onChange={e => setDate(e.target.value)} 
-            className="border-2 border-gray-50 rounded-xl px-4 py-2 outline-none bg-gray-50 text-gray-800 font-bold focus:border-blue-500 focus:bg-white transition-all" 
+            className="border-2 border-gray-50 rounded-xl px-4 py-2 outline-none bg-gray-50 text-gray-800 font-bold focus:border-blue-500 focus:bg-white transition-all text-[15px]" 
           />
         </div>
         <div className="flex-1 border-l border-gray-100 pl-6 hidden md:block">
-          <p className="text-[14px] font-black text-blue-600 uppercase tracking-[0.2em]">Dica de Uso</p>
-          <p className="text-base text-gray-500 mt-1">Clique em <span className="font-bold text-green-600">C</span> para Comparecimento ou <span className="font-bold text-red-600">F</span> para Falta.</p>
+          <p className="text-[13px] font-black text-blue-600 uppercase tracking-[0.2em]">Dica de Uso</p>
+          <p className="text-[15px] text-gray-500 mt-1">Clique em <span className="font-bold text-green-600">C</span> para Comparecimento ou <span className="font-bold text-red-600">F</span> para Falta.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {state.classes.map(cls => {
+        {filteredClasses.map(cls => {
           const classStudents = state.students.filter(s => s.classId === cls.id);
           const matriculadosCount = classStudents.filter(s => s.status === StudentStatus.MATRICULADO).length;
           
@@ -193,12 +211,17 @@ const AttendanceRecording: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{cls.name}</h3>
               <div className="mt-2 flex flex-col space-y-1">
-                <p className="text-[14px] font-black text-gray-400 uppercase tracking-widest">{classStudents.length} Alunos Totais</p>
-                <p className="text-[14px] font-black text-blue-500 uppercase tracking-widest">{matriculadosCount} Ativos para Chamada</p>
+                <p className="text-[13px] font-black text-gray-400 uppercase tracking-widest">{classStudents.length} Alunos Totais</p>
+                <p className="text-[13px] font-black text-blue-500 uppercase tracking-widest">{matriculadosCount} Ativos para Chamada</p>
               </div>
             </button>
           );
         })}
+        {filteredClasses.length === 0 && (
+          <div className="col-span-full py-12 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <p className="text-gray-400 font-black text-[13px] uppercase tracking-widest">Nenhuma turma '{currentUser?.role === UserRole.AETE ? 'AETE' : ''}' encontrada.</p>
+          </div>
+        )}
       </div>
     </div>
   );

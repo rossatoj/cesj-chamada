@@ -2,7 +2,8 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
   PEDAGOGO = 'PEDAGOGO',
-  DIRETOR = 'DIRETOR'
+  DIRETOR = 'DIRETOR',
+  AETE = 'AETE'
 }
 
 export enum StudentStatus {
@@ -29,6 +30,7 @@ export interface ClassGroup {
 export interface Student {
   id: string;
   fullName: string;
+  callNumber: string;
   cgm: string;
   birthDate: string;
   status: StudentStatus;

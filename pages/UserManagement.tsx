@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useApp } from '../App';
+import { useApp } from '../AppContext';
 import { User, UserRole } from '../types';
 import { Plus, Trash2, Shield, User as UserIcon, Edit2, Loader2, Mail, Info, ExternalLink } from 'lucide-react';
 
@@ -38,7 +38,7 @@ const UserManagement: React.FC = () => {
       alert(editingId ? 'Dados do usuário atualizados no Firestore!' : 'Perfil do usuário cadastrado com sucesso!');
       setEditingId(null);
       setFormData({ fullName: '', email: '', role: UserRole.PEDAGOGO, password: '' });
-    } catch (err) {
+    } catch {
       alert('Erro ao salvar no Firestore.');
     } finally {
       setBusy(false);
@@ -86,39 +86,40 @@ const UserManagement: React.FC = () => {
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                <label className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center">
                   <UserIcon size={12} className="mr-1" /> Nome Completo
                 </label>
-                <input type="text" required className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} />
+                <input type="text" required className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-[15px]" value={formData.fullName || ''} onChange={e => setFormData({...formData, fullName: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                <label className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center">
                   <Mail size={12} className="mr-1" /> E-mail Institucional
                 </label>
-                <input type="email" required className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                <input type="email" required className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-[15px]" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                <label className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center">
                   <Shield size={12} className="mr-1" /> Cargo / Perfil
                 </label>
-                <select className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})} disabled={editingId === currentUser?.id}>
+                <select className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-[15px]" value={formData.role || UserRole.PEDAGOGO} onChange={e => setFormData({...formData, role: e.target.value as UserRole})} disabled={editingId === currentUser?.id}>
                   <option value={UserRole.ADMIN}>ADMINISTRADOR</option>
                   <option value={UserRole.PEDAGOGO}>PEDAGOGO</option>
                   <option value={UserRole.DIRETOR}>DIRETOR</option>
+                  <option value={UserRole.AETE}>AETE</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[14px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                <label className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center">
                   <Shield size={12} className="mr-1" /> Senha Interna
                 </label>
-                <input type="password" required maxLength={12} className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                <input type="password" required maxLength={12} className="w-full border-2 border-gray-100 rounded-xl px-3 py-2 bg-gray-50 text-black outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-[15px]" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} />
               </div>
-              <button disabled={busy} className={`w-full text-white py-4 rounded-xl font-black text-[14px] tracking-widest uppercase flex justify-center items-center shadow-lg transition-all active:scale-95 ${editingId ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'}`}>
+              <button disabled={busy} className={`w-full text-white py-4 rounded-xl font-black text-[13px] tracking-widest uppercase flex justify-center items-center shadow-lg transition-all active:scale-95 ${editingId ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'}`}>
                 {busy && <Loader2 className="animate-spin mr-2" size={14} />}
                 {editingId ? 'ATUALIZAR DADOS' : 'CADASTRAR NO SISTEMA'}
               </button>
               {editingId && (
-                <button type="button" onClick={() => setEditingId(null)} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-black text-[14px] tracking-widest uppercase mt-2">CANCELAR</button>
+                <button type="button" onClick={() => setEditingId(null)} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-black text-[13px] tracking-widest uppercase mt-2">CANCELAR</button>
               )}
             </form>
           </div>
@@ -126,16 +127,16 @@ const UserManagement: React.FC = () => {
           <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl shadow-sm">
             <div className="flex items-center space-x-2 text-orange-700 mb-3">
               <Info size={18} />
-              <h4 className="text-[14px] font-black uppercase tracking-widest">Aviso Importante</h4>
+              <h4 className="text-[13px] font-black uppercase tracking-widest">Aviso Importante</h4>
             </div>
-            <p className="text-[14px] text-orange-800/80 font-bold leading-relaxed uppercase">
-              Para que o usuário consiga fazer login, você também deve cadastrar o e-mail e a senha no <b>Firebase Console > Authentication</b>.
+            <p className="text-[13px] text-orange-800/80 font-bold leading-relaxed uppercase">
+              Para que o usuário consiga fazer login, você também deve cadastrar o e-mail e a senha no <b>Firebase Console &gt; Authentication</b>.
             </p>
             <a 
               href="https://console.firebase.google.com/" 
               target="_blank" 
               rel="noreferrer"
-              className="mt-4 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-orange-200 text-orange-700 text-[14px] font-black uppercase hover:bg-orange-100 transition-colors"
+              className="mt-4 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-orange-200 text-orange-700 text-[13px] font-black uppercase hover:bg-orange-100 transition-colors"
             >
               <span>Acessar Authentication</span>
               <ExternalLink size={12} />
@@ -147,16 +148,16 @@ const UserManagement: React.FC = () => {
           {state.users.map(user => (
             <div key={user.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-[14px]">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-[13px]">
                   {user.fullName[0]}
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900 leading-tight">{user.fullName}</h4>
-                  <p className="text-[14px] text-gray-500 uppercase tracking-widest font-semibold flex items-center mt-1">
+                  <h4 className="font-bold text-gray-900 leading-tight text-[15px]">{user.fullName}</h4>
+                  <p className="text-[13px] text-gray-500 uppercase tracking-widest font-semibold flex items-center mt-1">
                     <Mail size={10} className="mr-1 opacity-50" /> {user.email}
                   </p>
                   <div className="flex items-center mt-1.5 space-x-2">
-                    <span className="text-[14px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-black uppercase tracking-[0.1em]">{user.role}</span>
+                    <span className="text-[13px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-black uppercase tracking-[0.1em]">{user.role}</span>
                   </div>
                 </div>
               </div>
@@ -168,7 +169,7 @@ const UserManagement: React.FC = () => {
           ))}
           {state.users.length === 0 && (
             <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400 font-black text-[14px] uppercase tracking-widest">Nenhum usuário cadastrado no banco de dados.</p>
+              <p className="text-gray-400 font-black text-[13px] uppercase tracking-widest">Nenhum usuário cadastrado no banco de dados.</p>
             </div>
           )}
         </div>
