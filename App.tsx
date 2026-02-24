@@ -12,7 +12,8 @@ import {
   X,
   Loader2,
   ShieldAlert,
-  UserMinus
+  UserMinus,
+  FileText as FileIcon
 } from 'lucide-react';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
@@ -35,15 +36,17 @@ import {
   signOut,
   Auth
 } from 'firebase/auth';
-import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord } from './types';
+import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate } from './types';
 import { AppContext, useApp, DBStatus } from './AppContext';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
 import ClassManagement from './pages/ClassManagement';
 import StudentManagement from './pages/StudentManagement';
 import AttendanceRecording from './pages/AttendanceRecording';
+import ContraturnoRecording from './pages/ContraturnoRecording';
 import Reports from './pages/Reports';
 import Absentees from './pages/Absentees';
+import MedicalCertificates from './pages/MedicalCertificates';
 import Login from './pages/Login';
 
 // Configuração extraída do ambiente
@@ -95,11 +98,13 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
 
   const menuItems = [
     { path: '/', label: 'Painel', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
-    { path: '/frequencia', label: 'Frequência', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.AETE] },
-    { path: '/faltosos', label: 'Faltosos', icon: UserMinus, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.AETE] },
+    { path: '/frequencia', label: 'Frequência', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
+    { path: '/contraturno', label: 'Contraturno', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
+    { path: '/faltosos', label: 'Faltosos', icon: UserMinus, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
+    { path: '/atestados', label: 'Atestados', icon: FileIcon, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
     { path: '/relatorios', label: 'Relatórios', icon: FileText, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
-    { path: '/turmas', label: 'Turmas', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO] },
-    { path: '/alunos', label: 'Alunos', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO] },
+    { path: '/turmas', label: 'Turmas', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR] },
+    { path: '/alunos', label: 'Alunos', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR] },
     { path: '/usuarios', label: 'Usuários', icon: Users, roles: [UserRole.ADMIN] },
   ];
 
@@ -169,7 +174,8 @@ const App: React.FC = () => {
     users: [],
     classes: [],
     students: [],
-    attendance: []
+    attendance: [],
+    certificates: []
   });
   const [loading, setLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState<DBStatus>(isConfigValid ? 'connecting' : 'invalid-api-key');
@@ -272,11 +278,17 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, attendance }));
     }, handleError);
 
+    const unsubCertificates = onSnapshot(collection(db, 'certificates'), (snapshot) => {
+      const certificates = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MedicalCertificate));
+      setState(prev => ({ ...prev, certificates }));
+    }, handleError);
+
     return () => {
       unsubUsers();
       unsubClasses();
       unsubStudents();
       unsubAttendance();
+      unsubCertificates();
     };
   }, [currentUser]);
 
@@ -326,6 +338,16 @@ const App: React.FC = () => {
     await batch.commit();
   };
 
+  const persistCertificate = async (cert: MedicalCertificate) => {
+    if (!db) return;
+    await setDoc(doc(db, 'certificates', cert.id), cert);
+  };
+
+  const removeCertificate = async (id: string) => {
+    if (!db) return;
+    await deleteDoc(doc(db, 'certificates', id));
+  };
+
   const testConnectivity = () => {
     // Firestore status updates are automatically handled by onSnapshot
   };
@@ -345,6 +367,7 @@ const App: React.FC = () => {
         state, setState, currentUser, setCurrentUser, logout, 
         persistUser, removeUser, persistClass, removeClass, 
         persistStudent, removeStudent, persistAttendance,
+        persistCertificate, removeCertificate,
         loading, dbStatus, lastError, testConnectivity, auth: authInstance
       }}>
         <Login />
@@ -357,6 +380,7 @@ const App: React.FC = () => {
       state, setState, currentUser, setCurrentUser, logout, 
       persistUser, removeUser, persistClass, removeClass, 
       persistStudent, removeStudent, persistAttendance,
+      persistCertificate, removeCertificate,
       loading, dbStatus, lastError, testConnectivity, auth: authInstance
     }}>
       <MemoryRouter>
@@ -388,11 +412,13 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/usuarios" element={currentUser.role === UserRole.ADMIN ? <UserManagement /> : <Navigate to="/" />} />
-              <Route path="/turmas" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO ? <ClassManagement /> : <Navigate to="/" />} />
-              <Route path="/alunos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO ? <StudentManagement /> : <Navigate to="/" />} />
-              <Route path="/frequencia" element={<AttendanceRecording />} />
-              <Route path="/faltosos" element={<Absentees />} />
-              <Route path="/relatorios" element={<Reports />} />
+              <Route path="/turmas" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <ClassManagement /> : <Navigate to="/" />} />
+              <Route path="/alunos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <StudentManagement /> : <Navigate to="/" />} />
+              <Route path="/frequencia" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <AttendanceRecording /> : <Navigate to="/" />} />
+              <Route path="/contraturno" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <ContraturnoRecording /> : <Navigate to="/" />} />
+              <Route path="/faltosos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Absentees /> : <Navigate to="/" />} />
+              <Route path="/atestados" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <MedicalCertificates /> : <Navigate to="/" />} />
+              <Route path="/relatorios" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Reports /> : <Navigate to="/" />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>

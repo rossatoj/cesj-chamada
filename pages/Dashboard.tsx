@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
       if (aeteClass) {
         classes = [aeteClass];
         students = state.students.filter(s => s.classId === aeteClass.id);
-        attendance = state.attendance.filter(a => a.classId === aeteClass.id);
+        attendance = state.attendance.filter(a => a.classId === aeteClass.id && (a.type === 'regular' || !a.type));
       } else {
         classes = [];
         students = [];
@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
         .map(c => c.id);
       
       students = state.students.filter(s => !excludedClassIds.includes(s.classId));
-      attendance = state.attendance.filter(a => !excludedClassIds.includes(a.classId));
+      attendance = state.attendance.filter(a => !excludedClassIds.includes(a.classId) && (a.type === 'regular' || !a.type));
     }
 
     return { classes, students, attendance };

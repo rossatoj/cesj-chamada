@@ -16,13 +16,17 @@ const AttendanceRecording: React.FC = () => {
       // Perfil AETE vê SOMENTE a turma AETE
       return state.classes.filter(c => c.name.toUpperCase().trim() === 'AETE');
     }
+    if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.PEDAGOGO || currentUser?.role === UserRole.DIRETOR) {
+      // Admin, Pedagogo e Diretor vêem TODAS as turmas
+      return state.classes;
+    }
     // Outros perfis NÃO vêem a turma AETE para chamada institucional
     return state.classes.filter(c => c.name.toUpperCase().trim() !== 'AETE');
   }, [state.classes, currentUser]);
 
   const handleSelectClass = (cls: ClassGroup) => {
     setSelectedClass(cls);
-    const existing = state.attendance.filter(a => a.classId === cls.id && a.date === date);
+    const existing = state.attendance.filter(a => a.classId === cls.id && a.date === date && (a.type === 'regular' || !a.type));
     const initial: Record<string, boolean> = {};
     state.students.filter(s => s.classId === cls.id).forEach(s => {
       const record = existing.find(a => a.studentId === s.id);
@@ -41,7 +45,8 @@ const AttendanceRecording: React.FC = () => {
         classId: selectedClass.id,
         studentId,
         date,
-        isPresent: isPresent as boolean
+        isPresent: isPresent as boolean,
+        type: 'regular'
       }));
 
       await persistAttendance(newRecords);

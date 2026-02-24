@@ -43,6 +43,15 @@ export interface AttendanceRecord {
   classId: string;
   date: string;
   isPresent: boolean;
+  type?: 'regular' | 'contraturno';
+}
+
+export interface MedicalCertificate {
+  id: string;
+  studentId: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
 }
 
 export interface AppState {
@@ -50,4 +59,5 @@ export interface AppState {
   classes: ClassGroup[];
   students: Student[];
   attendance: AttendanceRecord[];
+  certificates: MedicalCertificate[];
 }

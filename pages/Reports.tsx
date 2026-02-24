@@ -28,7 +28,7 @@ const Reports: React.FC = () => {
       
       let filteredAttendance = [];
       if (filterType === 'daily') {
-        filteredAttendance = state.attendance.filter(a => a.classId === turma.id && a.date === selectedDate);
+        filteredAttendance = state.attendance.filter(a => a.classId === turma.id && a.date === selectedDate && (a.type === 'regular' || !a.type));
       } else if (filterType === 'weekly') {
         // Simple logic for week: last 7 days from selected
         const dateObj = new Date(selectedDate);
@@ -37,14 +37,16 @@ const Reports: React.FC = () => {
         filteredAttendance = state.attendance.filter(a => 
           a.classId === turma.id && 
           new Date(a.date) >= sevenDaysAgo && 
-          new Date(a.date) <= dateObj
+          new Date(a.date) <= dateObj &&
+          (a.type === 'regular' || !a.type)
         );
       } else {
         // Monthly logic
         const targetMonth = selectedDate.substring(0, 7);
         filteredAttendance = state.attendance.filter(a => 
           a.classId === turma.id && 
-          a.date.startsWith(targetMonth)
+          a.date.startsWith(targetMonth) &&
+          (a.type === 'regular' || !a.type)
         );
       }
 
@@ -66,7 +68,12 @@ const Reports: React.FC = () => {
     if (filterType !== 'absentees_daily') return [];
     
     return filteredClasses.map(turma => {
-      const classAttendance = state.attendance.filter(a => a.classId === turma.id && a.date === selectedDate && !a.isPresent);
+      const classAttendance = state.attendance.filter(a => 
+        a.classId === turma.id && 
+        a.date === selectedDate && 
+        !a.isPresent && 
+        (a.type === 'regular' || !a.type)
+      );
       const absentees = classAttendance.map(a => {
         const student = state.students.find(s => s.id === a.studentId);
         return {

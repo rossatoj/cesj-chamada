@@ -14,9 +14,9 @@ const Absentees: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
   const absenteesData = useMemo(() => {
-    // 1. Filter attendance for selected month and only absences
+    // 1. Filter attendance for selected month and only absences (regular type)
     const monthlyAbsences = state.attendance.filter(a => 
-      a.date.startsWith(selectedMonth) && !a.isPresent
+      a.date.startsWith(selectedMonth) && !a.isPresent && (a.type === 'regular' || !a.type)
     );
 
     // 2. Group by student
@@ -43,7 +43,7 @@ const Absentees: React.FC = () => {
 
       // Filter by AETE role restrictions (if applicable)
       if (currentUser?.role === UserRole.AETE && turma?.name.toUpperCase() !== 'AETE') return null;
-      if (currentUser?.role !== UserRole.AETE && turma?.name.toUpperCase() === 'AETE' && currentUser?.role !== UserRole.ADMIN) return null;
+      if (currentUser?.role !== UserRole.AETE && currentUser?.role !== UserRole.ADMIN && currentUser?.role !== UserRole.PEDAGOGO && currentUser?.role !== UserRole.DIRETOR && turma?.name.toUpperCase() === 'AETE') return null;
 
       return {
         student,
@@ -82,6 +82,9 @@ const Absentees: React.FC = () => {
     if (currentUser?.role === UserRole.AETE) {
       return state.classes.filter(c => c.name.toUpperCase() === 'AETE');
     }
+    if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.PEDAGOGO || currentUser?.role === UserRole.DIRETOR) {
+      return state.classes;
+    }
     return state.classes.filter(c => c.name.toUpperCase() !== 'AETE');
   }, [state.classes, currentUser]);
 
@@ -98,6 +101,13 @@ const Absentees: React.FC = () => {
   const formatDate = (dateStr: string) => {
     const [, month, day] = dateStr.split('-');
     return `${day}/${month}`;
+  };
+
+  const hasCertificate = (studentId: string, dateStr: string) => {
+    return state.certificates.some(cert => {
+      if (cert.studentId !== studentId) return false;
+      return dateStr >= cert.startDate && dateStr <= cert.endDate;
+    });
   };
 
   return (
@@ -189,11 +199,22 @@ const Absentees: React.FC = () => {
                         </td>
                         <td className="px-8 py-5">
                           <div className="flex flex-wrap gap-1.5">
-                            {dates.map(date => (
-                              <span key={date} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[12px] font-bold border border-gray-200">
-                                {formatDate(date)}
-                              </span>
-                            ))}
+                            {dates.map(date => {
+                              const isCovered = hasCertificate(student.id, date);
+                              return (
+                                <span 
+                                  key={date} 
+                                  className={`px-2 py-0.5 rounded-md text-[12px] font-bold border ${
+                                    isCovered 
+                                      ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
+                                      : 'bg-red-50 text-red-600 border-red-100'
+                                  }`}
+                                  title={isCovered ? 'Afastamento por Atestado Médico' : undefined}
+                                >
+                                  {formatDate(date)}
+                                </span>
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>
