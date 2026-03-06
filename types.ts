@@ -54,10 +54,22 @@ export interface MedicalCertificate {
   createdAt: string;
 }
 
+export interface StudentDocuments {
+  id: string; // studentId
+  missingBirthCertificate: boolean;
+  missingRG: boolean;
+  missingCPF: boolean;
+  missingResponsibleCPF: boolean;
+  missingProofOfResidence: boolean;
+  missingVaccinationDeclaration: boolean;
+  updatedAt: string;
+}
+
 export interface AppState {
   users: User[];
   classes: ClassGroup[];
   students: Student[];
   attendance: AttendanceRecord[];
   certificates: MedicalCertificate[];
+  studentDocuments: StudentDocuments[];
 }

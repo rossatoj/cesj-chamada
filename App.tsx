@@ -36,7 +36,7 @@ import {
   signOut,
   Auth
 } from 'firebase/auth';
-import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate } from './types';
+import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments } from './types';
 import { AppContext, useApp, DBStatus } from './AppContext';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
@@ -47,6 +47,7 @@ import ContraturnoRecording from './pages/ContraturnoRecording';
 import Reports from './pages/Reports';
 import Absentees from './pages/Absentees';
 import MedicalCertificates from './pages/MedicalCertificates';
+import StudentDocumentsPage from './pages/StudentDocuments';
 import Login from './pages/Login';
 
 // Configuração extraída do ambiente
@@ -105,6 +106,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
     { path: '/relatorios', label: 'Relatórios', icon: FileText, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
     { path: '/turmas', label: 'Turmas', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR] },
     { path: '/alunos', label: 'Alunos', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR] },
+    { path: '/documentos', label: 'Documentos', icon: FileIcon, roles: [UserRole.ADMIN] },
     { path: '/usuarios', label: 'Usuários', icon: Users, roles: [UserRole.ADMIN] },
   ];
 
@@ -119,7 +121,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
             <div className="bg-blue-600 p-2 rounded-xl">
               <GraduationCap size={24} />
             </div>
-            <span className="font-black text-xl tracking-tighter uppercase">SÃO JOSÉ</span>
+            <span className="font-black text-xl tracking-tighter uppercase">C. E. SÃO JOSÉ</span>
           </div>
           <button onClick={toggle} className="lg:hidden text-white/50 hover:text-white">
             <X size={24} />
@@ -175,7 +177,8 @@ const App: React.FC = () => {
     classes: [],
     students: [],
     attendance: [],
-    certificates: []
+    certificates: [],
+    studentDocuments: []
   });
   const [loading, setLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState<DBStatus>(isConfigValid ? 'connecting' : 'invalid-api-key');
@@ -283,12 +286,18 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, certificates }));
     }, handleError);
 
+    const unsubStudentDocs = onSnapshot(collection(db, 'studentDocuments'), (snapshot) => {
+      const studentDocuments = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as StudentDocuments));
+      setState(prev => ({ ...prev, studentDocuments }));
+    }, handleError);
+
     return () => {
       unsubUsers();
       unsubClasses();
       unsubStudents();
       unsubAttendance();
       unsubCertificates();
+      unsubStudentDocs();
     };
   }, [currentUser]);
 
@@ -348,6 +357,11 @@ const App: React.FC = () => {
     await deleteDoc(doc(db, 'certificates', id));
   };
 
+  const persistStudentDocuments = async (docs: StudentDocuments) => {
+    if (!db) return;
+    await setDoc(doc(db, 'studentDocuments', docs.id), docs);
+  };
+
   const testConnectivity = () => {
     // Firestore status updates are automatically handled by onSnapshot
   };
@@ -368,6 +382,7 @@ const App: React.FC = () => {
         persistUser, removeUser, persistClass, removeClass, 
         persistStudent, removeStudent, persistAttendance,
         persistCertificate, removeCertificate,
+        persistStudentDocuments,
         loading, dbStatus, lastError, testConnectivity, auth: authInstance
       }}>
         <Login />
@@ -381,6 +396,7 @@ const App: React.FC = () => {
       persistUser, removeUser, persistClass, removeClass, 
       persistStudent, removeStudent, persistAttendance,
       persistCertificate, removeCertificate,
+      persistStudentDocuments,
       loading, dbStatus, lastError, testConnectivity, auth: authInstance
     }}>
       <MemoryRouter>
@@ -391,7 +407,7 @@ const App: React.FC = () => {
             <header className="flex items-center justify-between mb-8 lg:hidden">
               <div className="flex items-center space-x-2">
                 <GraduationCap className="text-blue-600" />
-                <span className="font-black text-gray-900">SÃO JOSÉ</span>
+                <span className="font-black text-gray-900">C. E. SÃO JOSÉ</span>
               </div>
               <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
                 <Menu />
@@ -414,6 +430,7 @@ const App: React.FC = () => {
               <Route path="/usuarios" element={currentUser.role === UserRole.ADMIN ? <UserManagement /> : <Navigate to="/" />} />
               <Route path="/turmas" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <ClassManagement /> : <Navigate to="/" />} />
               <Route path="/alunos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <StudentManagement /> : <Navigate to="/" />} />
+              <Route path="/documentos" element={currentUser.role === UserRole.ADMIN ? <StudentDocumentsPage /> : <Navigate to="/" />} />
               <Route path="/frequencia" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <AttendanceRecording /> : <Navigate to="/" />} />
               <Route path="/contraturno" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <ContraturnoRecording /> : <Navigate to="/" />} />
               <Route path="/faltosos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Absentees /> : <Navigate to="/" />} />

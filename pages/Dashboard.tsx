@@ -46,13 +46,14 @@ const Dashboard: React.FC = () => {
   const stats = useMemo(() => {
     const totalStudents = filteredData.students.length;
     const matriculados = filteredData.students.filter(s => s.status === StudentStatus.MATRICULADO).length;
+    const transferidos = filteredData.students.filter(s => s.status === StudentStatus.TRANSFERIDO).length;
     const turmas = filteredData.classes.length;
     
     const todaysTotal = filteredData.attendance.filter(a => a.date === selectedDate).length;
     const todaysPresence = filteredData.attendance.filter(a => a.date === selectedDate && a.isPresent).length;
     const presencePct = todaysTotal > 0 ? Math.round((todaysPresence / todaysTotal) * 100) : 0;
 
-    return { totalStudents, matriculados, turmas, presencePct };
+    return { totalStudents, matriculados, transferidos, turmas, presencePct };
   }, [filteredData, selectedDate]);
 
   const copyRules = () => {
@@ -170,8 +171,9 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="Total Alunos" value={stats.totalStudents} color="bg-blue-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <StatCard title="ALUNOS" value={stats.totalStudents} color="bg-blue-600" />
+        <StatCard title="TRANSFERIDOS" value={stats.transferidos} color="bg-red-600" />
         <StatCard title="Matriculados" value={stats.matriculados} color="bg-emerald-600" />
         <StatCard title="Total Turmas" value={stats.turmas} color="bg-indigo-600" />
         <StatCard title="Presença Período" value={`${stats.presencePct}%`} color="bg-orange-600" />

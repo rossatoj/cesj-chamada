@@ -9,27 +9,34 @@ const Absentees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
   
-  // Get current month in YYYY-MM format
-  const currentMonth = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }).substring(0, 7);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  // Get current year
+  const currentYear = new Date().getFullYear().toString();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   const absenteesData = useMemo(() => {
-    // 1. Filter attendance for selected month and only absences (regular type)
-    const monthlyAbsences = state.attendance.filter(a => 
-      a.date.startsWith(selectedMonth) && !a.isPresent && (a.type === 'regular' || !a.type)
-    );
-
-    // 2. Group by student
-    const studentAbsences: Record<string, string[]> = {};
-    monthlyAbsences.forEach(a => {
-      if (!studentAbsences[a.studentId]) {
-        studentAbsences[a.studentId] = [];
+    // Pre-calculate yearly absences and yearly certificate counts for all students in the selected year
+    const yearlyAbsencesMap: Record<string, string[]> = {};
+    state.attendance.forEach(a => {
+      if (a.date.startsWith(selectedYear) && !a.isPresent && (a.type === 'regular' || !a.type)) {
+        if (!yearlyAbsencesMap[a.studentId]) yearlyAbsencesMap[a.studentId] = [];
+        yearlyAbsencesMap[a.studentId].push(a.date);
       }
-      studentAbsences[a.studentId].push(a.date);
     });
 
-    // 3. Map to student details and filter by search/class
-    return Object.entries(studentAbsences).map(([studentId, dates]) => {
+    const yearlyRealAbsencesMap: Record<string, number> = {};
+    const yearlyCertificatesMap: Record<string, number> = {};
+    Object.entries(yearlyAbsencesMap).forEach(([studentId, dates]) => {
+      const certCount = dates.filter(date => 
+        state.certificates.some(cert => 
+          cert.studentId === studentId && date >= cert.startDate && date <= cert.endDate
+        )
+      ).length;
+      yearlyCertificatesMap[studentId] = certCount;
+      yearlyRealAbsencesMap[studentId] = dates.length - certCount;
+    });
+
+    // Map to student details and filter by search/class
+    return Object.entries(yearlyAbsencesMap).map(([studentId, dates]) => {
       const student = state.students.find(s => s.id === studentId);
       if (!student) return null;
       
@@ -49,7 +56,9 @@ const Absentees: React.FC = () => {
         student,
         turma,
         dates: dates.sort((a, b) => b.localeCompare(a)), // Sort dates descending
-        count: dates.length
+        yearlyCount: dates.length,
+        yearlyCertCount: yearlyCertificatesMap[studentId] || 0,
+        realAbsences: yearlyRealAbsencesMap[studentId] || 0
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
@@ -64,7 +73,7 @@ const Absentees: React.FC = () => {
       
       return a.student.fullName.localeCompare(b.student.fullName);
     });
-  }, [state.attendance, state.students, state.classes, selectedMonth, selectedClassId, searchTerm, currentUser]);
+  }, [state.attendance, state.students, state.classes, state.certificates, selectedYear, selectedClassId, searchTerm, currentUser]);
 
   const groupedAbsentees = useMemo(() => {
     const groups: Record<string, typeof absenteesData> = {};
@@ -115,16 +124,20 @@ const Absentees: React.FC = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tight">Alunos Faltosos</h2>
-          <p className="text-gray-500 font-medium">Controle de ausências no mês de referência</p>
+          <p className="text-gray-500 font-medium">Controle de ausências no ano de referência</p>
         </div>
         <div className="flex items-center space-x-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
           <Calendar size={18} className="text-blue-600 ml-2" />
-          <input 
-            type="month" 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="border-none outline-none font-bold text-gray-700 bg-transparent text-[15px]"
-          />
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="border-none outline-none font-bold text-gray-700 bg-transparent text-[15px] pr-4"
+          >
+            {[...Array(5)].map((_, i) => {
+              const year = (new Date().getFullYear() - i).toString();
+              return <option key={year} value={year}>{year}</option>;
+            })}
+          </select>
         </div>
       </header>
 
@@ -174,12 +187,13 @@ const Absentees: React.FC = () => {
                   <thead className="bg-gray-50/50 border-b border-gray-100">
                     <tr className="text-[12px] font-black text-gray-400 uppercase tracking-widest">
                       <th className="px-8 py-4">Nº / Aluno</th>
-                      <th className="px-8 py-4 text-center">Total Faltas</th>
-                      <th className="px-8 py-4">Dias das Faltas</th>
+                      <th className="px-8 py-4 text-center">Total de Faltas</th>
+                      <th className="px-8 py-4 text-center">Dias com Atestados</th>
+                      <th className="px-8 py-4 text-center" title="Total de faltas no ano subtraindo os atestados do ano">Faltas Reais</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {students.map(({ student, dates, count }) => (
+                    {students.map(({ student, dates, realAbsences, yearlyCount, yearlyCertCount }) => (
                       <tr key={student.id} className="hover:bg-blue-50/30 transition-colors group">
                         <td className="px-8 py-5">
                           <div className="flex items-center space-x-4">
@@ -189,33 +203,43 @@ const Absentees: React.FC = () => {
                             <div>
                               <p className="font-bold text-gray-900 text-[15px] leading-tight">{student.fullName}</p>
                               <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mt-0.5">CGM: {student.cgm}</p>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {dates.map(date => {
+                                  const isCovered = hasCertificate(student.id, date);
+                                  return (
+                                    <span 
+                                      key={date} 
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                        isCovered 
+                                          ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
+                                          : 'bg-red-50 text-red-600 border-red-100'
+                                      }`}
+                                      title={isCovered ? 'Afastamento por Atestado Médico' : undefined}
+                                    >
+                                      {formatDate(date)}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-5 text-center">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-700 font-black text-sm">
-                            {count}
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-black text-sm border border-gray-200">
+                            {yearlyCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5">
-                          <div className="flex flex-wrap gap-1.5">
-                            {dates.map(date => {
-                              const isCovered = hasCertificate(student.id, date);
-                              return (
-                                <span 
-                                  key={date} 
-                                  className={`px-2 py-0.5 rounded-md text-[12px] font-bold border ${
-                                    isCovered 
-                                      ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
-                                      : 'bg-red-50 text-red-600 border-red-100'
-                                  }`}
-                                  title={isCovered ? 'Afastamento por Atestado Médico' : undefined}
-                                >
-                                  {formatDate(date)}
-                                </span>
-                              );
-                            })}
-                          </div>
+                        <td className="px-8 py-5 text-center">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-50 text-yellow-700 font-black text-sm border border-yellow-100">
+                            {yearlyCertCount}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-center" title="Saldo anual de faltas (Anual - Atestados do Ano)">
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-black text-sm ${
+                            realAbsences > 0 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {realAbsences}
+                          </span>
                         </td>
                       </tr>
                     ))}
