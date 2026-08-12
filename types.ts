@@ -3,14 +3,16 @@ export enum UserRole {
   ADMIN = 'ADMIN',
   PEDAGOGO = 'PEDAGOGO',
   DIRETOR = 'DIRETOR',
-  AETE = 'AETE'
+  AETE = 'AETE',
+  ALUNO = 'ALUNO'
 }
 
 export enum StudentStatus {
   MATRICULADO = 'MATRICULADO',
   TRANSFERIDO = 'TRANSFERIDO',
   SEM_FREQUENCIA = 'SEM FREQUÊNCIA',
-  REMANEJADO = 'REMANEJADO'
+  REMANEJADO = 'REMANEJADO',
+  CONCLUINTE = 'CONCLUINTE'
 }
 
 export interface User {
@@ -22,9 +24,16 @@ export interface User {
   password?: string;
 }
 
+export enum Shift {
+  MATUTINO = 'MATUTINO',
+  VESPERTINO = 'VESPERTINO',
+  INTEGRAL = 'INTEGRAL'
+}
+
 export interface ClassGroup {
   id: string;
   name: string;
+  shift: Shift;
 }
 
 export interface Student {
@@ -54,6 +63,15 @@ export interface MedicalCertificate {
   createdAt: string;
 }
 
+export interface LateArrival {
+  id: string;
+  studentId: string;
+  reason: string;
+  date: string;
+  time: string;
+  createdAt: string;
+}
+
 export interface StudentDocuments {
   id: string; // studentId
   missingBirthCertificate: boolean;
@@ -62,6 +80,7 @@ export interface StudentDocuments {
   missingResponsibleCPF: boolean;
   missingProofOfResidence: boolean;
   missingVaccinationDeclaration: boolean;
+  vaccinationDeclarationExpiry?: string;
   updatedAt: string;
 }
 
@@ -72,4 +91,5 @@ export interface AppState {
   attendance: AttendanceRecord[];
   certificates: MedicalCertificate[];
   studentDocuments: StudentDocuments[];
+  lateArrivals: LateArrival[];
 }

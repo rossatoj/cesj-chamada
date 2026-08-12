@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../AppContext';
-import { UserRole } from '../types';
+import { UserRole, StudentStatus } from '../types';
 import { UserMinus, Calendar, Search, Filter, ChevronDown } from 'lucide-react';
 
 const Absentees: React.FC = () => {
@@ -35,10 +35,17 @@ const Absentees: React.FC = () => {
       yearlyRealAbsencesMap[studentId] = dates.length - certCount;
     });
 
-    // Map to student details and filter by search/class
+    // Map to student details and filter by search/class/status
     return Object.entries(yearlyAbsencesMap).map(([studentId, dates]) => {
       const student = state.students.find(s => s.id === studentId);
       if (!student) return null;
+      
+      // Exclude inactive students
+      if (
+        student.status === StudentStatus.TRANSFERIDO || 
+        student.status === StudentStatus.REMANEJADO || 
+        student.status === StudentStatus.CONCLUINTE
+      ) return null;
       
       const turma = state.classes.find(c => c.id === student.classId);
       
@@ -161,7 +168,7 @@ const Absentees: React.FC = () => {
           >
             <option value="all">Todas as Turmas</option>
             {filteredClasses.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name} ({c.shift || 'N/A'})</option>
             ))}
           </select>
           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
@@ -177,7 +184,14 @@ const Absentees: React.FC = () => {
           return (
             <div key={classId} className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
               <div className="bg-gray-50 px-8 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{className}</h3>
+                <div className="flex items-center space-x-3">
+                  <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{className}</h3>
+                  {turma && (
+                    <span className="text-[11px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                      {turma.shift || 'N/A'}
+                    </span>
+                  )}
+                </div>
                 <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[13px] font-black uppercase">
                   {students.length} {students.length === 1 ? 'Aluno' : 'Alunos'}
                 </span>

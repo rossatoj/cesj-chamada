@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
-import { Plus, Trash2, Edit2, Loader2, Users as UsersIcon } from 'lucide-react';
+import { Plus, Trash2, Edit2, Loader2, Users as UsersIcon, Clock } from 'lucide-react';
+import { Shift } from '../types';
 
 const ClassManagement: React.FC = () => {
   const { state, persistClass, removeClass } = useApp();
   const [name, setName] = useState('');
+  const [shift, setShift] = useState<Shift>(Shift.MATUTINO);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -16,8 +18,9 @@ const ClassManagement: React.FC = () => {
 
     try {
       const id = editingId || Date.now().toString();
-      await persistClass({ id, name: name.trim() });
+      await persistClass({ id, name: name.trim(), shift });
       setName('');
+      setShift(Shift.MATUTINO);
       setEditingId(null);
     } catch {
       alert('Erro ao salvar turma.');
@@ -56,11 +59,24 @@ const ClassManagement: React.FC = () => {
       </header>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 items-end">
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-2 w-full">
           <label className="block text-[15px] font-semibold text-gray-700">Nome da Turma</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: 6º ANO A" className="w-full border rounded-lg px-4 py-2 outline-none bg-white text-black text-[15px]" required />
         </div>
-        <button disabled={busy} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold flex items-center text-[15px]">
+        <div className="w-full md:w-48 space-y-2">
+          <label className="block text-[15px] font-semibold text-gray-700">Turno</label>
+          <select 
+            value={shift} 
+            onChange={e => setShift(e.target.value as Shift)} 
+            className="w-full border rounded-lg px-4 py-2 outline-none bg-white text-black text-[15px]"
+            required
+          >
+            <option value={Shift.MATUTINO}>MATUTINO</option>
+            <option value={Shift.VESPERTINO}>VESPERTINO</option>
+            <option value={Shift.INTEGRAL}>INTEGRAL</option>
+          </select>
+        </div>
+        <button disabled={busy} type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold flex items-center text-[15px] h-[42px]">
           {busy ? <Loader2 className="animate-spin mr-2" size={18} /> : (editingId ? <Edit2 size={18} className="mr-2" /> : <Plus size={18} className="mr-2" />)}
           {editingId ? 'Atualizar' : 'Cadastrar'}
         </button>
@@ -71,12 +87,17 @@ const ClassManagement: React.FC = () => {
           <div key={cls.id} className="bg-white p-6 rounded-xl border border-gray-100 flex justify-between items-center group shadow-sm hover:shadow-md transition-all">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold text-gray-800 truncate">{cls.name}</h3>
-              <span className="text-[15px] text-gray-500 flex items-center mt-1">
-                <UsersIcon size={14} className="mr-1" /> {state.students.filter(s => s.classId === cls.id).length} Alunos
-              </span>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                <span className="text-[13px] text-gray-500 flex items-center">
+                  <UsersIcon size={14} className="mr-1" /> {state.students.filter(s => s.classId === cls.id).length} Alunos
+                </span>
+                <span className="text-[13px] text-blue-600 font-bold flex items-center uppercase tracking-wider">
+                  <Clock size={14} className="mr-1" /> {cls.shift || 'N/A'}
+                </span>
+              </div>
             </div>
             <div className="flex space-x-1">
-              <button onClick={() => { setEditingId(cls.id); setName(cls.name); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
+              <button onClick={() => { setEditingId(cls.id); setName(cls.name); setShift(cls.shift || Shift.MATUTINO); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
               <button onClick={() => handleDelete(cls.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
             </div>
           </div>

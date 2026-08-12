@@ -106,6 +106,7 @@ const UserManagement: React.FC = () => {
                   <option value={UserRole.PEDAGOGO}>PEDAGOGO</option>
                   <option value={UserRole.DIRETOR}>DIRETOR</option>
                   <option value={UserRole.AETE}>AETE</option>
+                  <option value={UserRole.ALUNO}>ALUNO</option>
                 </select>
               </div>
               <div className="space-y-1">

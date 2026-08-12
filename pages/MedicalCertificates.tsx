@@ -103,6 +103,11 @@ const MedicalCertificates: React.FC = () => {
     }, {} as typeof data);
   }, [state.certificates, state.students, state.classes]);
 
+  const totalCertificatesInYear = useMemo(() => {
+    const currentYear = new Date().getFullYear().toString();
+    return state.certificates.filter(cert => cert.startDate.startsWith(currentYear)).length;
+  }, [state.certificates]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header>
@@ -269,7 +274,7 @@ const MedicalCertificates: React.FC = () => {
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Resumo Geral por Turma</h3>
           <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">
-            {Object.keys(groupedCertificatesData).length} Turmas com Atestados
+            {totalCertificatesInYear} Atestados em {new Date().getFullYear()}
           </span>
         </div>
 

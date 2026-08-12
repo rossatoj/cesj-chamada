@@ -21,7 +21,11 @@ const ContraturnoRecording: React.FC = () => {
 
   const chartData = useMemo(() => {
     return filteredClasses.map(cls => {
-      const classAttendance = state.attendance.filter(a => a.classId === cls.id && a.type === 'contraturno');
+      const classAttendance = state.attendance.filter(a => 
+        a.classId === cls.id && 
+        a.date === date && 
+        a.type === 'contraturno'
+      );
       const total = classAttendance.length;
       const presence = classAttendance.filter(a => a.isPresent).length;
       const percentage = total > 0 ? Math.round((presence / total) * 100) : 0;
@@ -30,7 +34,7 @@ const ContraturnoRecording: React.FC = () => {
         porcentagem: percentage
       };
     });
-  }, [filteredClasses, state.attendance]);
+  }, [filteredClasses, state.attendance, date]);
 
   const handleSelectClass = (cls: ClassGroup) => {
     setSelectedClass(cls);
@@ -81,7 +85,10 @@ const ContraturnoRecording: React.FC = () => {
 
   const renderAttendanceIndicator = (student: Student) => {
     if (student.status !== StudentStatus.MATRICULADO) {
-      const text = student.status === StudentStatus.SEM_FREQUENCIA ? 'SF' : student.status[0];
+      let text = student.status[0];
+      if (student.status === StudentStatus.SEM_FREQUENCIA) text = 'SF';
+      if (student.status === StudentStatus.CONCLUINTE) text = 'CN';
+      
       return <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-black bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed" title="Situação impeditiva para chamada">{text}</div>;
     }
     const isPresent = currentAttendance[student.id];
@@ -224,6 +231,11 @@ const ContraturnoRecording: React.FC = () => {
                 <ClipboardCheck size={32} />
               </div>
               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{cls.name}</h3>
+              <div className="mt-1 mb-2">
+                <span className="text-[11px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                  {cls.shift || 'N/A'}
+                </span>
+              </div>
               <div className="mt-2 flex flex-col space-y-1">
                 <p className="text-[13px] font-black text-gray-400 uppercase tracking-widest">{classStudents.length} Alunos Totais</p>
                 <p className="text-[13px] font-black text-blue-500 uppercase tracking-widest">{matriculadosCount} Ativos para Chamada</p>
@@ -239,7 +251,7 @@ const ContraturnoRecording: React.FC = () => {
       </div>
 
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 mt-8">
-        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-8">Frequência Acumulada Contraturno (%)</h3>
+        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-8">Frequência Diária Contraturno (%)</h3>
         <div className="h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>

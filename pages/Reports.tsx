@@ -4,7 +4,7 @@ import { useApp } from '../AppContext';
 import { FileDown, Table, Calendar } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { UserRole } from '../types';
+import { UserRole, StudentStatus } from '../types';
 
 const Reports: React.FC = () => {
   const { state, currentUser } = useApp();
@@ -22,13 +22,24 @@ const Reports: React.FC = () => {
   }, [state.classes, currentUser]);
 
   const reportData = useMemo(() => {
-    return filteredClasses.map(turma => {
-      const classStudents = state.students.filter(s => s.classId === turma.id);
-      const studentCount = classStudents.length;
+    const data = filteredClasses.map(turma => {
+      const activeClassStudents = state.students.filter(s => 
+        s.classId === turma.id && 
+        s.status !== StudentStatus.TRANSFERIDO && 
+        s.status !== StudentStatus.REMANEJADO &&
+        s.status !== StudentStatus.CONCLUINTE
+      );
+      const activeStudentIds = new Set(activeClassStudents.map(s => s.id));
+      const studentCount = activeClassStudents.length;
       
       let filteredAttendance = [];
       if (filterType === 'daily') {
-        filteredAttendance = state.attendance.filter(a => a.classId === turma.id && a.date === selectedDate && (a.type === 'regular' || !a.type));
+        filteredAttendance = state.attendance.filter(a => 
+          a.classId === turma.id && 
+          a.date === selectedDate && 
+          (a.type === 'regular' || !a.type) &&
+          activeStudentIds.has(a.studentId)
+        );
       } else if (filterType === 'weekly') {
         // Simple logic for week: last 7 days from selected
         const dateObj = new Date(selectedDate);
@@ -38,7 +49,8 @@ const Reports: React.FC = () => {
           a.classId === turma.id && 
           new Date(a.date) >= sevenDaysAgo && 
           new Date(a.date) <= dateObj &&
-          (a.type === 'regular' || !a.type)
+          (a.type === 'regular' || !a.type) &&
+          activeStudentIds.has(a.studentId)
         );
       } else {
         // Monthly logic
@@ -46,7 +58,8 @@ const Reports: React.FC = () => {
         filteredAttendance = state.attendance.filter(a => 
           a.classId === turma.id && 
           a.date.startsWith(targetMonth) &&
-          (a.type === 'regular' || !a.type)
+          (a.type === 'regular' || !a.type) &&
+          activeStudentIds.has(a.studentId)
         );
       }
 
@@ -56,23 +69,40 @@ const Reports: React.FC = () => {
 
       return {
         turma: turma.name,
+        shift: turma.shift || 'N/A',
         totalAlunos: studentCount,
         presencas: presenceCount,
         faltas: absenceCount,
-        porcentagem: percentage.toFixed(1) + '%'
+        porcentagem: percentage.toFixed(1) + '%',
+        rawPercentage: percentage
       };
     });
+
+    if (filterType === 'monthly') {
+      return [...data].sort((a, b) => b.rawPercentage - a.rawPercentage);
+    }
+
+    return data;
   }, [filteredClasses, state.students, state.attendance, filterType, selectedDate]);
 
   const absenteesReportData = useMemo(() => {
     if (filterType !== 'absentees_daily') return [];
     
     return filteredClasses.map(turma => {
+      const activeClassStudents = state.students.filter(s => 
+        s.classId === turma.id && 
+        s.status !== StudentStatus.TRANSFERIDO && 
+        s.status !== StudentStatus.REMANEJADO &&
+        s.status !== StudentStatus.CONCLUINTE
+      );
+      const activeStudentIds = new Set(activeClassStudents.map(s => s.id));
+
       const classAttendance = state.attendance.filter(a => 
         a.classId === turma.id && 
         a.date === selectedDate && 
         !a.isPresent && 
-        (a.type === 'regular' || !a.type)
+        (a.type === 'regular' || !a.type) &&
+        activeStudentIds.has(a.studentId)
       );
       const absentees = classAttendance.map(a => {
         const student = state.students.find(s => s.id === a.studentId);
@@ -87,6 +117,7 @@ const Reports: React.FC = () => {
 
       return {
         turma: turma.name,
+        shift: turma.shift || 'N/A',
         absentees
       };
     }).filter(t => t.absentees.length > 0);
@@ -150,13 +181,13 @@ const Reports: React.FC = () => {
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 200, 35, { align: 'right' });
 
-    const tableRows = reportData.map(r => [
-      r.turma,
-      r.totalAlunos.toString(),
-      r.presencas.toString(),
-      r.faltas.toString(),
-      r.porcentagem
-    ]);
+      const tableRows = reportData.map(r => [
+        `${r.turma} (${r.shift})`,
+        r.totalAlunos.toString(),
+        r.presencas.toString(),
+        r.faltas.toString(),
+        r.porcentagem
+      ]);
 
     autoTable(doc, {
       startY: 40,
@@ -219,7 +250,12 @@ const Reports: React.FC = () => {
             {absenteesReportData.map((turmaData, idx) => (
               <div key={idx} className="space-y-4">
                 <div className="bg-red-50 px-4 py-2 rounded-lg border border-red-100 flex justify-between items-center">
-                  <h3 className="font-bold text-red-800 uppercase tracking-tight">{turmaData.turma}</h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="font-bold text-red-800 uppercase tracking-tight">{turmaData.turma}</h3>
+                    <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black">
+                      {turmaData.shift}
+                    </span>
+                  </div>
                   <span className="bg-red-200 text-red-800 px-2 py-0.5 rounded-full text-xs font-black">
                     {turmaData.absentees.length} FALTAS
                   </span>
@@ -256,7 +292,12 @@ const Reports: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {reportData.map((row, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-bold text-gray-800 text-[15px]">{row.turma}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800 text-[15px]">{row.turma}</span>
+                      <span className="text-[11px] font-black text-blue-600 uppercase tracking-widest">{row.shift}</span>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-gray-600 text-[15px]">{row.totalAlunos}</td>
                   <td className="px-6 py-4 text-green-600 font-semibold text-[15px]">{row.presencas}</td>
                   <td className="px-6 py-4 text-red-600 font-semibold text-[15px]">{row.faltas}</td>

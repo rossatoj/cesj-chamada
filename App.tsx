@@ -36,7 +36,7 @@ import {
   signOut,
   Auth
 } from 'firebase/auth';
-import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments } from './types';
+import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments, LateArrival } from './types';
 import { AppContext, useApp, DBStatus } from './AppContext';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
@@ -48,6 +48,7 @@ import Reports from './pages/Reports';
 import Absentees from './pages/Absentees';
 import MedicalCertificates from './pages/MedicalCertificates';
 import StudentDocumentsPage from './pages/StudentDocuments';
+import LateArrivals from './pages/LateArrivals';
 import Login from './pages/Login';
 
 // Configuração extraída do ambiente
@@ -100,6 +101,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
   const menuItems = [
     { path: '/', label: 'Painel', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
     { path: '/frequencia', label: 'Frequência', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
+    { path: '/atrasados', label: 'Atrasado', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE, UserRole.ALUNO] },
     { path: '/contraturno', label: 'Contraturno', icon: ClipboardCheck, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
     { path: '/faltosos', label: 'Faltosos', icon: UserMinus, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
     { path: '/atestados', label: 'Atestados', icon: FileIcon, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR, UserRole.AETE] },
@@ -115,7 +117,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
   return (
     <>
       <div className={`fixed inset-0 z-20 bg-black/50 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={toggle} />
-      <aside className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#0a192f] text-white transition-transform transform lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#0a192f] text-white transition-transform transform lg:translate-x-0 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl">
@@ -178,7 +180,8 @@ const App: React.FC = () => {
     students: [],
     attendance: [],
     certificates: [],
-    studentDocuments: []
+    studentDocuments: [],
+    lateArrivals: []
   });
   const [loading, setLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState<DBStatus>(isConfigValid ? 'connecting' : 'invalid-api-key');
@@ -291,6 +294,11 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, studentDocuments }));
     }, handleError);
 
+    const unsubLateArrivals = onSnapshot(collection(db, 'lateArrivals'), (snapshot) => {
+      const lateArrivals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LateArrival));
+      setState(prev => ({ ...prev, lateArrivals }));
+    }, handleError);
+
     return () => {
       unsubUsers();
       unsubClasses();
@@ -298,6 +306,7 @@ const App: React.FC = () => {
       unsubAttendance();
       unsubCertificates();
       unsubStudentDocs();
+      unsubLateArrivals();
     };
   }, [currentUser]);
 
@@ -362,6 +371,16 @@ const App: React.FC = () => {
     await setDoc(doc(db, 'studentDocuments', docs.id), docs);
   };
 
+  const persistLateArrival = async (late: LateArrival) => {
+    if (!db) return;
+    await setDoc(doc(db, 'lateArrivals', late.id), late);
+  };
+
+  const removeLateArrival = async (id: string) => {
+    if (!db) return;
+    await deleteDoc(doc(db, 'lateArrivals', id));
+  };
+
   const testConnectivity = () => {
     // Firestore status updates are automatically handled by onSnapshot
   };
@@ -383,6 +402,7 @@ const App: React.FC = () => {
         persistStudent, removeStudent, persistAttendance,
         persistCertificate, removeCertificate,
         persistStudentDocuments,
+        persistLateArrival, removeLateArrival,
         loading, dbStatus, lastError, testConnectivity, auth: authInstance
       }}>
         <Login />
@@ -397,14 +417,15 @@ const App: React.FC = () => {
       persistStudent, removeStudent, persistAttendance,
       persistCertificate, removeCertificate,
       persistStudentDocuments,
+      persistLateArrival, removeLateArrival,
       loading, dbStatus, lastError, testConnectivity, auth: authInstance
     }}>
       <MemoryRouter>
         <div className="min-h-screen bg-gray-50 flex">
           <Sidebar isOpen={isSidebarOpen} toggle={() => setIsSidebarOpen(!isSidebarOpen)} />
           
-          <main className="flex-1 lg:ml-72 p-4 md:p-8 lg:p-12">
-            <header className="flex items-center justify-between mb-8 lg:hidden">
+          <main className="flex-1 lg:ml-72 p-4 md:p-8 lg:p-12 print:p-0 print:ml-0">
+            <header className="flex items-center justify-between mb-8 lg:hidden print:hidden">
               <div className="flex items-center space-x-2">
                 <GraduationCap className="text-blue-600" />
                 <span className="font-black text-gray-900">C. E. SÃO JOSÉ</span>
@@ -426,12 +447,13 @@ const App: React.FC = () => {
             )}
 
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={currentUser.role === UserRole.ALUNO ? <Navigate to="/atrasados" /> : <Dashboard />} />
               <Route path="/usuarios" element={currentUser.role === UserRole.ADMIN ? <UserManagement /> : <Navigate to="/" />} />
               <Route path="/turmas" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <ClassManagement /> : <Navigate to="/" />} />
               <Route path="/alunos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <StudentManagement /> : <Navigate to="/" />} />
               <Route path="/documentos" element={currentUser.role === UserRole.ADMIN ? <StudentDocumentsPage /> : <Navigate to="/" />} />
               <Route path="/frequencia" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <AttendanceRecording /> : <Navigate to="/" />} />
+              <Route path="/atrasados" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE || currentUser.role === UserRole.ALUNO ? <LateArrivals /> : <Navigate to="/" />} />
               <Route path="/contraturno" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <ContraturnoRecording /> : <Navigate to="/" />} />
               <Route path="/faltosos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Absentees /> : <Navigate to="/" />} />
               <Route path="/atestados" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <MedicalCertificates /> : <Navigate to="/" />} />
