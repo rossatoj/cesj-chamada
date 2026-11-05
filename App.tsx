@@ -13,7 +13,8 @@ import {
   Loader2,
   ShieldAlert,
   UserMinus,
-  FileText as FileIcon
+  FileText as FileIcon,
+  Utensils
 } from 'lucide-react';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
@@ -36,7 +37,7 @@ import {
   signOut,
   Auth
 } from 'firebase/auth';
-import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments, LateArrival } from './types';
+import { AppState, User, UserRole, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments, LateArrival, MerendaRecord } from './types';
 import { AppContext, useApp, DBStatus } from './AppContext';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
@@ -49,6 +50,7 @@ import Absentees from './pages/Absentees';
 import MedicalCertificates from './pages/MedicalCertificates';
 import StudentDocumentsPage from './pages/StudentDocuments';
 import LateArrivals from './pages/LateArrivals';
+import Merenda from './pages/Merenda';
 import Login from './pages/Login';
 
 // Configuração extraída do ambiente
@@ -110,6 +112,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
     { path: '/alunos', label: 'Alunos', icon: GraduationCap, roles: [UserRole.ADMIN, UserRole.PEDAGOGO, UserRole.DIRETOR] },
     { path: '/documentos', label: 'Documentos', icon: FileIcon, roles: [UserRole.ADMIN] },
     { path: '/usuarios', label: 'Usuários', icon: Users, roles: [UserRole.ADMIN] },
+    { path: '/merenda', label: 'Merenda', icon: Utensils, roles: [UserRole.ADMIN, UserRole.DIRETOR, UserRole.MERENDA] },
   ];
 
   const filteredMenu = menuItems.filter(item => currentUser && item.roles.includes(currentUser.role));
@@ -117,8 +120,8 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
   return (
     <>
       <div className={`fixed inset-0 z-20 bg-black/50 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={toggle} />
-      <aside className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#0a192f] text-white transition-transform transform lg:translate-x-0 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+      <aside className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#0a192f] text-white flex flex-col transition-transform transform lg:translate-x-0 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl">
               <GraduationCap size={24} />
@@ -130,7 +133,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
           </button>
         </div>
         
-        <nav className="p-4 space-y-2 mt-4">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {filteredMenu.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -148,7 +151,7 @@ const Sidebar: React.FC<{ isOpen: boolean; toggle: () => void }> = ({ isOpen, to
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div className="flex-shrink-0 p-4 border-t border-white/10 bg-[#0a192f]">
           <div className="bg-white/5 rounded-2xl p-4 mb-4 border border-white/5">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center font-black">
@@ -181,7 +184,8 @@ const App: React.FC = () => {
     attendance: [],
     certificates: [],
     studentDocuments: [],
-    lateArrivals: []
+    lateArrivals: [],
+    merendaRecords: []
   });
   const [loading, setLoading] = useState(true);
   const [dbStatus, setDbStatus] = useState<DBStatus>(isConfigValid ? 'connecting' : 'invalid-api-key');
@@ -299,6 +303,11 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, lateArrivals }));
     }, handleError);
 
+    const unsubMerenda = onSnapshot(collection(db, 'merenda'), (snapshot) => {
+      const merendaRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MerendaRecord));
+      setState(prev => ({ ...prev, merendaRecords }));
+    }, handleError);
+
     return () => {
       unsubUsers();
       unsubClasses();
@@ -307,6 +316,7 @@ const App: React.FC = () => {
       unsubCertificates();
       unsubStudentDocs();
       unsubLateArrivals();
+      unsubMerenda();
     };
   }, [currentUser]);
 
@@ -381,6 +391,30 @@ const App: React.FC = () => {
     await deleteDoc(doc(db, 'lateArrivals', id));
   };
 
+  const persistMerendaRecord = async (record: MerendaRecord) => {
+    if (!db) {
+      setState(prev => ({
+        ...prev,
+        merendaRecords: prev.merendaRecords.some(r => r.id === record.id)
+          ? prev.merendaRecords.map(r => r.id === record.id ? record : r)
+          : [...prev.merendaRecords, record]
+      }));
+      return;
+    }
+    await setDoc(doc(db, 'merenda', record.id), record);
+  };
+
+  const removeMerendaRecord = async (id: string) => {
+    if (!db) {
+      setState(prev => ({
+        ...prev,
+        merendaRecords: prev.merendaRecords.filter(r => r.id !== id)
+      }));
+      return;
+    }
+    await deleteDoc(doc(db, 'merenda', id));
+  };
+
   const testConnectivity = () => {
     // Firestore status updates are automatically handled by onSnapshot
   };
@@ -403,6 +437,7 @@ const App: React.FC = () => {
         persistCertificate, removeCertificate,
         persistStudentDocuments,
         persistLateArrival, removeLateArrival,
+        persistMerendaRecord, removeMerendaRecord,
         loading, dbStatus, lastError, testConnectivity, auth: authInstance
       }}>
         <Login />
@@ -418,6 +453,7 @@ const App: React.FC = () => {
       persistCertificate, removeCertificate,
       persistStudentDocuments,
       persistLateArrival, removeLateArrival,
+      persistMerendaRecord, removeMerendaRecord,
       loading, dbStatus, lastError, testConnectivity, auth: authInstance
     }}>
       <MemoryRouter>
@@ -447,8 +483,15 @@ const App: React.FC = () => {
             )}
 
             <Routes>
-              <Route path="/" element={currentUser.role === UserRole.ALUNO ? <Navigate to="/atrasados" /> : <Dashboard />} />
+              <Route path="/" element={
+                currentUser.role === UserRole.ALUNO 
+                  ? <Navigate to="/atrasados" /> 
+                  : currentUser.role === UserRole.MERENDA 
+                    ? <Navigate to="/merenda" /> 
+                    : <Dashboard />
+              } />
               <Route path="/usuarios" element={currentUser.role === UserRole.ADMIN ? <UserManagement /> : <Navigate to="/" />} />
+              <Route path="/merenda" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.MERENDA ? <Merenda /> : <Navigate to="/" />} />
               <Route path="/turmas" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <ClassManagement /> : <Navigate to="/" />} />
               <Route path="/alunos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR ? <StudentManagement /> : <Navigate to="/" />} />
               <Route path="/documentos" element={currentUser.role === UserRole.ADMIN ? <StudentDocumentsPage /> : <Navigate to="/" />} />
@@ -458,7 +501,7 @@ const App: React.FC = () => {
               <Route path="/faltosos" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Absentees /> : <Navigate to="/" />} />
               <Route path="/atestados" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <MedicalCertificates /> : <Navigate to="/" />} />
               <Route path="/relatorios" element={currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PEDAGOGO || currentUser.role === UserRole.DIRETOR || currentUser.role === UserRole.AETE ? <Reports /> : <Navigate to="/" />} />
-              <Route path="*" element={<Navigate to="/" />} />
+              <Route path="*" element={currentUser.role === UserRole.MERENDA ? <Navigate to="/merenda" /> : <Navigate to="/" />} />
             </Routes>
           </main>
         </div>

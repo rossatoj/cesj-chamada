@@ -4,7 +4,8 @@ export enum UserRole {
   PEDAGOGO = 'PEDAGOGO',
   DIRETOR = 'DIRETOR',
   AETE = 'AETE',
-  ALUNO = 'ALUNO'
+  ALUNO = 'ALUNO',
+  MERENDA = 'MERENDA'
 }
 
 export enum StudentStatus {
@@ -84,6 +85,31 @@ export interface StudentDocuments {
   updatedAt: string;
 }
 
+export type MerendaContainerType = 'cuba_grande' | 'cuba_pequena' | 'forma' | 'personalizado';
+
+export interface MerendaItem {
+  id: string;
+  productName: string;
+  containerQuantity: number; // Quantidade de recipientes
+  containerType: MerendaContainerType;
+  containerTare: number; // Cuba Grande: 1.7kg, Cuba Pequena: 1kg, Forma: 0.5kg
+  totalWeight: number; // Peso total com recipiente (kg)
+  netWeight: number; // Peso total menos tara do recipiente (kg)
+}
+
+export interface MerendaRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  items: MerendaItem[];
+  wasteGrossWeight: number; // Peso bruto com balde (kg)
+  wasteTare: number; // Tara do balde: 1.0kg
+  wasteNetWeight: number; // Desperdício líquido (kg)
+  totalPreparedNetWeight: number; // Total líquido preparado (kg)
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppState {
   users: User[];
   classes: ClassGroup[];
@@ -92,4 +118,5 @@ export interface AppState {
   certificates: MedicalCertificate[];
   studentDocuments: StudentDocuments[];
   lateArrivals: LateArrival[];
+  merendaRecords: MerendaRecord[];
 }

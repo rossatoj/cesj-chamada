@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { Auth } from 'firebase/auth';
-import { AppState, User, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments, LateArrival } from './types';
+import { AppState, User, ClassGroup, Student, AttendanceRecord, MedicalCertificate, StudentDocuments, LateArrival, MerendaRecord } from './types';
 
 export type DBStatus = 'connecting' | 'online' | 'permission-denied' | 'error' | 'invalid-api-key';
 
@@ -22,6 +22,8 @@ export interface AppContextType {
   persistStudentDocuments: (docs: StudentDocuments) => Promise<void>;
   persistLateArrival: (late: LateArrival) => Promise<void>;
   removeLateArrival: (id: string) => Promise<void>;
+  persistMerendaRecord: (record: MerendaRecord) => Promise<void>;
+  removeMerendaRecord: (id: string) => Promise<void>;
   loading: boolean;
   dbStatus: DBStatus;
   lastError: string | null;
